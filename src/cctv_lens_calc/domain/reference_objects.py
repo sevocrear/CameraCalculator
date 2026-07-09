@@ -98,8 +98,8 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
         orientation=ObjectOrientation.TOP_DOWN,
         model_mesh_offset_x_m=0.025,
         model_mesh_offset_y_m=0.020,
-        # Длина Porsche вдоль +Z в файле → разворачиваем лицом к камере (−Z).
-        model_rotation_xyz=(0.0, 3.141592653589793, 0.0),
+        # После flatten GLB уже смотрит в −Z; π разворачивал задом.
+        model_rotation_xyz=(0.0, 0.0, 0.0),
     ),
 }
 

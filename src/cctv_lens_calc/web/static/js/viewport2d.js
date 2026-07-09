@@ -1,4 +1,8 @@
-/** 2D вид камеры: pinhole-проекция на сенсор resolution_w × resolution_h. */
+/** 2D вид камеры: pinhole-проекция на сенсор resolution_w × resolution_h.
+ *
+ * Внутренний canvas = размер сенсора в пикселях (1 px кадра = 1 px canvas).
+ * CSS масштабирует отображение с сохранением aspect-ratio из resolution W/H.
+ */
 
 const Viewport2D = (function () {
   const canvas = () => document.getElementById('viewport2d');
@@ -19,18 +23,37 @@ const Viewport2D = (function () {
   let _offscreenCamera = null;
   let _offscreenMeshRoot = null;
   let _lastArgs = null;
+  let _sensorW = 0;
+  let _sensorH = 0;
+
+  function _resetOffscreen() {
+    if (_offscreenRenderer) {
+      _offscreenRenderer.dispose();
+    }
+    _offscreenCanvas = null;
+    _offscreenRenderer = null;
+    _offscreenScene = null;
+    _offscreenCamera = null;
+    _offscreenMeshRoot = null;
+    _lastArgs = null;
+  }
 
   function setResolution(width, height) {
     const c = canvas();
     if (!c) return;
     const w = Math.max(1, Math.round(width));
     const h = Math.max(1, Math.round(height));
-    if (c.width !== w || c.height !== h) {
+    if (w !== _sensorW || h !== _sensorH) {
+      _sensorW = w;
+      _sensorH = h;
       c.width = w;
       c.height = h;
+      _resetOffscreen();
     }
+    const wrap = c.parentElement;
+    if (wrap) wrap.style.aspectRatio = `${w} / ${h}`;
     const title = document.getElementById('viewport2dTitle');
-    if (title) title.textContent = `2D — вид камеры (${w}×${h})`;
+    if (title) title.textContent = `2D — вид камеры (${w}×${h} px)`;
   }
 
   function _degToRad(deg) {
@@ -63,8 +86,8 @@ const Viewport2D = (function () {
     if (!_offscreenScene) {
       _offscreenScene = new THREE.Scene();
       _offscreenScene.background = null;
-      _offscreenScene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+      _offscreenScene.add(new THREE.AmbientLight(0xffffff, 0.75));
+      const dir = new THREE.DirectionalLight(0xffffff, 0.95);
       dir.position.set(2, 6, 3);
       _offscreenScene.add(dir);
       _offscreenMeshRoot = new THREE.Group();
@@ -127,44 +150,40 @@ const Viewport2D = (function () {
 
     const cacheKey = ModelPrep.templateCacheKey(objectId, dims, orientation, objectPreset);
     const template = _fittedTemplateCache.get(cacheKey);
-    if (template) {
-      _offscreenMeshRoot.add(ModelPrep.placeInstance(template, world, objectPreset));
+
+    const doRender = (prepared) => {
+      if (!prepared || !_offscreenMeshRoot) return;
+      _offscreenMeshRoot.clear();
+      const w = ModelPrep.worldPoseFromProjection(proj, cameraParams.mount_height_m);
+      _offscreenMeshRoot.add(ModelPrep.placeInstance(prepared, w, objectPreset));
       _offscreenRenderer.render(_offscreenScene, _offscreenCamera);
-      ctx.drawImage(_offscreenCanvas, 0, 0);
+      ctx.drawImage(_offscreenCanvas, 0, 0, W, H);
+    };
+
+    if (template) {
+      doRender(template);
       return;
     }
 
-    _lastArgs = { ctx, objectId, cameraParams, proj, objectPreset };
+    _lastArgs = { ctx, objectId, cameraParams, proj, objectPreset, W, H };
     _getOrPrepareTemplate(objectId, dims, orientation, objectPreset).then((prepared) => {
-      if (!_lastArgs || _lastArgs.objectId !== objectId || !prepared || !_offscreenMeshRoot) return;
-      _offscreenMeshRoot.clear();
-      const w = ModelPrep.worldPoseFromProjection(_lastArgs.proj, _lastArgs.cameraParams.mount_height_m);
-      _offscreenMeshRoot.add(ModelPrep.placeInstance(prepared, w, _lastArgs.objectPreset));
-      _offscreenRenderer.render(_offscreenScene, _offscreenCamera);
-      _lastArgs.ctx.drawImage(_offscreenCanvas, 0, 0);
+      if (!_lastArgs || _lastArgs.objectId !== objectId) return;
+      if (_lastArgs.W !== ctx.canvas.width || _lastArgs.H !== ctx.canvas.height) return;
+      doRender(prepared);
     });
   }
 
-  function draw(result, objectId, cvThreshold, cameraParams, objectPreset) {
-    const c = canvas();
-    if (!c) return;
-
-    if (cameraParams) setResolution(cameraParams.resolution_w, cameraParams.resolution_h);
-
-    const ctx = c.getContext('2d');
-    const W = c.width;
-    const H = c.height;
-
+  function _drawFrameBackground(ctx, W, H) {
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#1a2430');
-    grad.addColorStop(1, '#121a22');
+    grad.addColorStop(0, '#ececec');
+    grad.addColorStop(1, '#dcdcdc');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = '#3a4652';
+    ctx.strokeStyle = '#c8c8c8';
     ctx.lineWidth = 1;
-    const gridStepX = Math.max(60, Math.round(W / 16));
-    const gridStepY = Math.max(60, Math.round(H / 16));
+    const gridStepX = Math.max(40, Math.round(W / 16));
+    const gridStepY = Math.max(40, Math.round(H / 16));
     for (let x = 0; x <= W; x += gridStepX) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -178,25 +197,33 @@ const Viewport2D = (function () {
       ctx.stroke();
     }
 
-    ctx.strokeStyle = '#484f58';
+    ctx.strokeStyle = '#a0a0a0';
     ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, W - 2, H - 2);
+    ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
 
-    ctx.strokeStyle = 'rgba(88,166,255,0.35)';
-    ctx.setLineDash([12, 8]);
-    ctx.strokeRect(W * 0.05, H * 0.05, W * 0.9, H * 0.9);
-    ctx.setLineDash([]);
-
-    ctx.strokeStyle = 'rgba(88,166,255,0.5)';
+    ctx.strokeStyle = 'rgba(40, 100, 180, 0.45)';
     ctx.beginPath();
     ctx.moveTo(W / 2, 0);
     ctx.lineTo(W / 2, H);
     ctx.moveTo(0, H / 2);
     ctx.lineTo(W, H / 2);
     ctx.stroke();
+  }
+
+  function draw(result, objectId, cvThreshold, cameraParams, objectPreset) {
+    const c = canvas();
+    if (!c) return;
+
+    if (cameraParams) setResolution(cameraParams.resolution_w, cameraParams.resolution_h);
+
+    const ctx = c.getContext('2d');
+    const W = c.width;
+    const H = c.height;
+
+    _drawFrameBackground(ctx, W, H);
 
     if (!result || !result.projection) {
-      ctx.fillStyle = '#8b949e';
+      ctx.fillStyle = '#57606a';
       ctx.font = '20px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('Выберите объект и дождитесь расчёта', W / 2, H / 2);
@@ -216,37 +243,39 @@ const Viewport2D = (function () {
       _renderObjectSnapshot(ctx, objectId || proj.object_id, cameraParams, proj, objectPreset);
     }
 
-    ctx.strokeStyle = pass ? '#3fb950' : '#f85149';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = pass ? '#1a7f37' : '#cf222e';
+    ctx.lineWidth = Math.max(1, Math.round(Math.min(W, H) / 400));
     ctx.setLineDash([6, 4]);
     ctx.strokeRect(bx, by, pw, ph);
     ctx.setLineDash([]);
 
-    ctx.fillStyle = '#e6edf3';
-    ctx.font = `bold ${Math.max(12, Math.min(20, Math.max(ph, 16) * 0.12))}px system-ui`;
+    const labelSize = Math.max(11, Math.min(18, Math.max(ph, 16) * 0.12));
+    ctx.fillStyle = '#1f2328';
+    ctx.font = `bold ${labelSize}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(proj.label || proj.object_id, cx2d, by + ph + 10);
+    ctx.fillText(proj.label || proj.object_id, cx2d, by + ph + 8);
 
     const tag = `${Math.round(pw)} × ${Math.round(ph)} px`;
-    const tagY = by - 14 > 28 ? by - 14 : by + ph + 22;
-    ctx.font = 'bold 20px system-ui';
+    const tagFont = Math.max(12, Math.min(18, Math.round(Math.min(W, H) / 50)));
+    const tagY = by - tagFont > 20 ? by - tagFont : by + ph + tagFont + 4;
+    ctx.font = `bold ${tagFont}px system-ui`;
     const tw = ctx.measureText(tag).width;
-    ctx.fillStyle = pass ? 'rgba(35,134,54,0.9)' : 'rgba(218,54,51,0.9)';
-    ctx.fillRect(cx2d - tw / 2 - 8, tagY - 16, tw + 16, 24);
+    ctx.fillStyle = pass ? 'rgba(26,127,55,0.92)' : 'rgba(207,34,46,0.92)';
+    ctx.fillRect(cx2d - tw / 2 - 8, tagY - tagFont, tw + 16, tagFont + 8);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(tag, cx2d, tagY - 4);
+    ctx.fillText(tag, cx2d, tagY - tagFont / 2 + 2);
   }
 
   function isBlank() {
     const c = canvas();
     if (!c) return true;
     const ctx = c.getContext('2d');
-    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    const d = ctx.getImageData(0, 0, Math.min(c.width, 8), Math.min(c.height, 8)).data;
     for (let i = 0; i < d.length; i += 4) {
-      if (d[i] !== 13 || d[i + 1] !== 17 || d[i + 2] !== 23) return false;
+      if (d[i] < 200 || d[i + 1] < 200 || d[i + 2] < 200) return false;
     }
     return true;
   }

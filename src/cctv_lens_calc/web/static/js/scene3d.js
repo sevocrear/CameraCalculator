@@ -31,8 +31,8 @@ const Scene3D = (function () {
 
     scene = new THREE.Scene();
     // Чуть светлее фон/туман, чтобы лучше читались модели и зоны.
-    scene.background = new THREE.Color(0x18202b);
-    scene.fog = new THREE.Fog(0x18202b, 30, 130);
+    scene.background = new THREE.Color(0xd4d8de);
+    scene.fog = new THREE.Fog(0xd4d8de, 30, 130);
 
     viewCamera = new THREE.PerspectiveCamera(55, 1, 0.05, 200);
     viewCamera.position.set(4, 3, 5);
@@ -71,12 +71,12 @@ const Scene3D = (function () {
     // Масштаб сетки: 1 клетка = 3 метра (как ты считаешь на скрине).
     const gridSize = 60;
     const gridDiv = 20; // 60/20 = 3м на клетку
-    const grid = new THREE.GridHelper(gridSize, gridDiv, 0x5b6672, 0x2b333d);
+    const grid = new THREE.GridHelper(gridSize, gridDiv, 0x9aa3ad, 0xc5ccd3);
     scene.add(grid);
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(gridSize, gridSize),
-      new THREE.MeshStandardMaterial({ color: 0x243042, roughness: 0.92, metalness: 0 })
+      new THREE.MeshStandardMaterial({ color: 0xc8ced6, roughness: 0.92, metalness: 0 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0;

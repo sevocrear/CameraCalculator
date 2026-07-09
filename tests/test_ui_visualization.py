@@ -120,21 +120,27 @@ def test_presets_objects_include_mesh_offsets(httpx_client: httpx.Client):
 
 
 def test_2d_canvas_matches_resolution(page):
-    page.locator("#resW").fill("1280")
-    page.locator("#resH").fill("720")
+    page.locator("#resW").fill("800")
+    page.locator("#resH").fill("600")
     page.locator("#resW").dispatch_event("input")
     page.wait_for_timeout(300)
     _wait_ready(page)
     dims = page.evaluate(
         """() => {
         const c = document.getElementById('viewport2d');
-        return { w: c.width, h: c.height };
+        const wrap = c.parentElement;
+        return {
+          w: c.width,
+          h: c.height,
+          aspect: wrap ? wrap.style.aspectRatio : null,
+        };
     }"""
     )
-    assert dims["w"] == 1280
-    assert dims["h"] == 720
+    assert dims["w"] == 800
+    assert dims["h"] == 600
+    assert dims["aspect"] == "800 / 600"
     title = page.locator("#viewport2dTitle").inner_text()
-    assert "1280" in title and "720" in title
+    assert "800" in title and "600" in title
 
 
 def test_2d_bbox_uses_projection_center(page):
