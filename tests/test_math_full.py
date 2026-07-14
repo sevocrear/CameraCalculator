@@ -71,7 +71,7 @@ def test_donut_orientation_is_flat_xz():
 
 
 def test_donut_projection_aspect_wide_and_short():
-    """Пончик «лицом» 10×10 см @ 1 м: width_px ≈ height_px."""
+    """A front-facing 10×10 cm donut has a nearly square projection."""
     req = CalculateRequest(
         camera=CameraParams(
             sensor_width_mm=5.37,
@@ -114,8 +114,8 @@ def test_cola_projection_taller_than_wide():
     assert p.aspect_wh < 1.0
 
 
-def test_cv_fail_when_below_threshold():
-    """Пончик @ 1 м: min(100, 100)=100 >= 64 → CV pass."""
+def test_cv_pass_when_above_threshold():
+    """The projected donut exceeds its configured CV threshold."""
     req = CalculateRequest(
         camera=CameraParams(
             sensor_width_mm=5.37,
@@ -153,13 +153,13 @@ def test_cv_pass_cola_close():
 def test_dori_monotonic_and_formula():
     res, sw, f = 1920, 5.37, 2.8
     d = dori.dori_distances(res, sw, f)
-    assert (
-        d["identification_m"]
-        < d["recognition_m"]
-        < d["observation_m"]
-        < d["detection_m"]
-    )
+    assert d["identification_m"] < d["recognition_m"] < d["observation_m"] < d["detection_m"]
     assert d["identification_m"] == pytest.approx(res * f / (250.0 * sw), rel=1e-9)
+
+
+def test_dori_rejects_non_positive_coverage_slope():
+    with pytest.raises(ValueError, match="must be positive"):
+        dori.distance_for_coverage_ppm(250.0, 1920, 0.0)
 
 
 def test_fisheye_fov_calibration_exact():

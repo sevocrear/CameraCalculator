@@ -10,7 +10,7 @@
     "resolution_h": 1080,
     "distance_m": 3.0,
     "object_distance_m": 3.0,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -25,7 +25,7 @@
     "resolution_h": 1080,
     "distance_m": 3.0,
     "object_distance_m": 3.0,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -40,7 +40,7 @@
     "resolution_h": 1080,
     "distance_m": 3.0,
     "object_distance_m": 3.0,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -55,7 +55,7 @@
     "resolution_h": 1080,
     "distance_m": 3.0,
     "object_distance_m": 3.0,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -70,7 +70,7 @@
     "resolution_h": 1080,
     "distance_m": 3.0,
     "object_distance_m": 3.0,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -85,7 +85,7 @@
     "resolution_h": 2160,
     "distance_m": 3.0,
     "object_distance_m": 3.0,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -100,7 +100,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.15,
+    "object_offset_x_m": 0.15,
     "object_offset_y_m": 0.05,
     "sensor_format_id": "1_2_8_inch"
   },
@@ -115,7 +115,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -130,7 +130,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -145,7 +145,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -160,7 +160,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -175,7 +175,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -190,7 +190,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -205,7 +205,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -220,7 +220,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -235,7 +235,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -250,7 +250,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -265,7 +265,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.0,
+    "object_offset_x_m": 0.0,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -280,7 +280,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.15,
+    "object_offset_x_m": 0.15,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   },
@@ -295,7 +295,7 @@
     "resolution_h": 1080,
     "distance_m": 7.4,
     "object_distance_m": 0.45,
-    "object_offset_z_m": 0.15,
+    "object_offset_x_m": 0.15,
     "object_offset_y_m": 0.0,
     "sensor_format_id": "1_1_8_inch"
   }

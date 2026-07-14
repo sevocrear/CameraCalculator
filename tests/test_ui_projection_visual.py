@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
@@ -13,7 +12,7 @@ pytestmark = pytest.mark.ui
 FIXTURE = Path(__file__).parent / "fixtures" / "projection_matrix.json"
 MATRIX = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
-# Ключевые конфигурации: rect + fisheye edge FOV
+# Representative rectilinear and fisheye edge cases.
 VISUAL_MATRIX = [
     ("R15", "donut"),
     ("R60", "donut"),
@@ -55,10 +54,6 @@ def _wait_model_rendered(page, timeout_ms=12000):
 
 
 def _focal_mm_for_ui(cfg: dict) -> float:
-    if cfg["lens_type"] == "fisheye_equidistant":
-        from cctv_lens_calc.domain.fisheye import effective_focal_from_fov
-
-        return effective_focal_from_fov(cfg["sensor_width_mm"], cfg["hfov_deg"])
     from cctv_lens_calc.domain.projection import rectilinear_focal_from_hfov
 
     return rectilinear_focal_from_hfov(cfg["sensor_width_mm"], cfg["hfov_deg"])
@@ -78,9 +73,10 @@ def _apply_config(page, cfg: dict, object_id: str):
     page.locator("#sensorFormat").select_option(_sensor_format_for_cfg(cfg))
     page.locator("#resW").fill(str(cfg["resolution_w"]))
     page.locator("#resH").fill(str(cfg["resolution_h"]))
-    page.locator("#focal").fill(f"{_focal_mm_for_ui(cfg):.4f}")
     if cfg["lens_type"] == "fisheye_equidistant":
         page.locator("#fisheyeFov").fill(str(cfg["hfov_deg"]))
+    else:
+        page.locator("#focal").fill(f"{_focal_mm_for_ui(cfg):.4f}")
     page.evaluate(
         """(cfg) => {
         const setRange = (id, val) => {
@@ -150,7 +146,7 @@ def _canvas_has_object_pixels_in_api_bbox(page) -> bool:
 
 @pytest.mark.parametrize("cfg_id,object_id", VISUAL_MATRIX)
 def test_2d_bbox_aligns_with_rendered_object(page, cfg_id, object_id):
-    """Зелёная рамка ≈ проекция физического bbox / меша (rect: ±15%, fisheye: объект внутри)."""
+    """The API bbox follows the rendered object within lens-specific tolerance."""
     cfg = next(c for c in MATRIX if c["id"] == cfg_id)
     _apply_config(page, cfg, object_id)
     data = _bbox_alignment(page)
@@ -165,7 +161,7 @@ def test_2d_bbox_aligns_with_rendered_object(page, cfg_id, object_id):
         assert align["centerDeltaU"] < data["canvasW"] * 0.08
         assert align["centerDeltaV"] < data["canvasH"] * 0.08
     else:
-        assert _canvas_has_object_pixels_in_api_bbox(page), "fisheye: объект не виден внутри bbox"
+        assert _canvas_has_object_pixels_in_api_bbox(page), "fisheye object is outside the API bbox"
 
 
 @pytest.mark.parametrize("res_w,res_h", RESOLUTION_CASES)
@@ -267,22 +263,18 @@ def test_sensor_format_change_updates_3d_frustum_width(page):
     assert large["hfovDeg"] > small["hfovDeg"]
 
 
-def test_fisheye_180_user_url_coverage_and_object_visible(page, base_url):
-    """URL пользователя: coverage конечный, объект виден, frustum не «в обратную сторону»."""
+def test_fisheye_180_reports_unbounded_coverage_and_keeps_object_visible(page, base_url):
     page.goto(
-        f"{base_url}/?preset=fisheye_camera&z=7.4&obj=cola_can&oz=0.45",
+        f"{base_url}/?preset=fisheye_camera&ffov=180&z=7.4&obj=cola_can&oz=0.45",
         wait_until="domcontentloaded",
     )
     _wait_ready(page)
     _wait_model_rendered(page)
 
     cov_text = page.locator("#metricCoverage").inner_text()
-    assert "e+" not in cov_text.lower()
-    nums = [float(x) for x in re.findall(r"[\d.]+", cov_text)]
-    assert nums[0] < 50.0
-
-    ppm = float(page.locator("#metricPpm").inner_text())
-    assert ppm > 0
+    assert "N/A" in cov_text
+    assert page.locator("#metricPpm").inner_text() == "N/A"
+    assert page.locator("#metricWarnings").is_visible()
 
     assert _canvas_has_object_pixels_in_api_bbox(page)
 
@@ -298,7 +290,7 @@ def test_fisheye_180_user_url_coverage_and_object_visible(page, base_url):
     }"""
     )
     assert obj_state["holderZ"] is not None
-    assert obj_state["holderZ"] < 0, "объект должен быть перед камерой (−Z)"
+    assert obj_state["holderZ"] < 0, "object must be in front of the camera (negative Z)"
     assert obj_state["apexY"] == pytest.approx(obj_state["camY"], abs=0.01)
 
 
@@ -308,7 +300,7 @@ def test_fisheye_179_vs_180_different_pixels(page, base_url):
         wait_until="domcontentloaded",
     )
     _wait_ready(page)
-    page.locator("#fisheyeFovField").evaluate("el => el.hidden = false")
+    assert page.locator("#fisheyeFovField").is_visible()
 
     page.locator("#fisheyeFov").fill("180")
     page.locator("#fisheyeFov").dispatch_event("input")

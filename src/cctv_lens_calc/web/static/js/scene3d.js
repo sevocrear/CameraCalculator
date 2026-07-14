@@ -1,10 +1,7 @@
-/** Three.js: интерактивная 3D-сцена (OrbitControls), frustum, объект, DORI.
+/** Three.js interactive scene: camera frustum, reference object, and DORI.
 
-Координаты мира (метры):
-  - пол: y = 0
-  - камера: (0, mountHeight, 0), оптическая ось вдоль −Z (смотрит горизонтально)
-  - плоскость покрытия на расстоянии Z: z = −Z, центр = (0, mountHeight, −Z)
-  - объект: на оптической оси на расстоянии objectDistance
+World coordinates are meters. The floor is y=0; the camera is mounted at
+(0, mountHeight, 0) and faces negative Z.
 */
 
 const Scene3D = (function () {
@@ -30,7 +27,7 @@ const Scene3D = (function () {
     if (!container || typeof THREE === 'undefined') return;
 
     scene = new THREE.Scene();
-    // Чуть светлее фон/туман, чтобы лучше читались модели и зоны.
+    // A light neutral background keeps models and translucent zones readable.
     scene.background = new THREE.Color(0xd4d8de);
     scene.fog = new THREE.Fog(0xd4d8de, 30, 130);
 
@@ -60,7 +57,7 @@ const Scene3D = (function () {
       controls.target.set(0, 1.5, -1);
     }
 
-    // Свет за CCTV-камерой (камера в начале координат смотрит в −Z): key сверху сзади + fill.
+    // Key light above and behind the CCTV camera, plus a softer fill light.
     scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     scene.add(new THREE.HemisphereLight(0xffffff, 0xa8b0b8, 0.45));
     const dir = new THREE.DirectionalLight(0xffffff, 1.15);
@@ -72,9 +69,9 @@ const Scene3D = (function () {
     fill.position.set(-4, 4, 3);
     scene.add(fill);
 
-    // Масштаб сетки: 1 клетка = 3 метра (как ты считаешь на скрине).
+    // Grid scale: one cell represents three meters.
     const gridSize = 60;
-    const gridDiv = 20; // 60/20 = 3м на клетку
+    const gridDiv = 20; // 60/20 = 3 meters per cell
     const grid = new THREE.GridHelper(gridSize, gridDiv, 0x9aa3ad, 0xc5ccd3);
     scene.add(grid);
 
@@ -86,7 +83,7 @@ const Scene3D = (function () {
     floor.position.y = 0;
     scene.add(floor);
 
-    // Стойка крепления: пол → камера
+    // Mounting pole from the floor to the camera.
     mountPole = new THREE.Mesh(
       new THREE.CylinderGeometry(0.02, 0.02, 1, 8),
       new THREE.MeshStandardMaterial({ color: 0x484f58 })
@@ -155,15 +152,15 @@ const Scene3D = (function () {
     return Math.tan((halfDeg * Math.PI) / 180.0);
   }
 
-  /** Cap frustum only near fisheye / ultra-wide (half-FOV ≥ 75°), not normal wide lenses. */
-  function _vizHalfWidth(hfovDeg, planeZ, objectZ) {
+  /** Half-width of a finite forward-plane footprint. */
+  function _vizHalfWidth(hfovDeg, planeZ) {
     const halfDeg = Math.min(hfovDeg / 2.0, 89.95);
-    const raw = planeZ * Math.tan((halfDeg * Math.PI) / 180.0);
-    if (halfDeg >= 75.0) {
-      const cap = Math.max(objectZ * 5, planeZ * 0.9, 2.0);
-      return Math.min(raw, cap);
-    }
-    return raw;
+    return planeZ * Math.tan((halfDeg * Math.PI) / 180.0);
+  }
+
+  /** Display-only fallback when a 180°+ footprint is mathematically unbounded. */
+  function _fallbackHalfWidth(planeZ, objectZ) {
+    return Math.max(objectZ * 2, planeZ, 2.0);
   }
 
   function clearGroup(group) {
@@ -200,15 +197,13 @@ const Scene3D = (function () {
 
     switch (objectId) {
       case 'donut':
-        // «Лицом» к камере: тор лежит в плоскости XY (нормаль по ±Z),
-        // камера смотрит вдоль −Z → тор виден как круг.
-        // Подгоняем так, чтобы outer diameter ≈ w, а толщина кольца ≈ d.
+        // The torus lies in XY and faces the camera along negative Z.
+        // Fit its outer diameter to width and ring thickness to depth.
         mesh = new THREE.Mesh(
           new THREE.TorusGeometry(Math.max(w * 0.33, 0.001), Math.max(d * 0.5, 0.001), 16, 32),
           mat
         );
-        // Тор в XY по умолчанию, без поворота.
-        // Масштабируем по высоте, чтобы заполнить bbox h (если h != w).
+        // Scale vertically when the requested physical box is not square.
         mesh.scale.y = h / w;
         break;
       case 'cola_can':
@@ -289,11 +284,11 @@ const Scene3D = (function () {
   }
 
   /**
-   * Рисует frustum: вершина в apex (камера), дальшеё — прямоугольник coverage.
-   * apex / corners — в мировых координатах.
+   * Draw a frustum from the camera apex to the coverage rectangle.
+   * Apex and corners use world coordinates.
    */
   function addFrustum(apex, corners, color, opacity) {
-    // Полупрозрачные грани «пирамиды»
+    // Translucent frustum faces.
     const faces = [
       [apex, corners[0], corners[1]],
       [apex, corners[1], corners[2]],
@@ -329,7 +324,7 @@ const Scene3D = (function () {
       frustumGroup.add(new THREE.Line(lg, lineMat));
     });
 
-    // Прямоугольник покрытия
+    // Coverage rectangle.
     const rect = [...corners, corners[0]];
     frustumGroup.add(
       new THREE.Line(
@@ -338,7 +333,7 @@ const Scene3D = (function () {
       )
     );
 
-    // Оптическая ось (центр coverage)
+    // Optical axis through the coverage center.
     const center = new THREE.Vector3(
       (corners[0].x + corners[2].x) / 2,
       (corners[0].y + corners[2].y) / 2,
@@ -366,8 +361,6 @@ const Scene3D = (function () {
     mountHeight,
     objectDims,
     objectDistance,
-    objectOffsetY,
-    objectOffsetZ,
     lensType,
     objectId
   ) {
@@ -378,11 +371,11 @@ const Scene3D = (function () {
     clearGroup(doriRings);
     clearGroup(objectGroup);
 
-    // --- Камера на высоте установки ---
+    // Position the camera at its configured mounting height.
     const camY = Math.max(Number(mountHeight) || 0, 0.05);
     camGroup.position.set(0, camY, 0);
 
-    // Стойка от пола до камеры
+    // Resize the mounting pole.
     if (mountPole) {
       mountPole.geometry.dispose();
       mountPole.geometry = new THREE.CylinderGeometry(0.02, 0.02, camY, 8);
@@ -394,15 +387,20 @@ const Scene3D = (function () {
       result && result.projection && result.projection.object_distance_m
         ? Math.max(result.projection.object_distance_m, 0.05)
         : Math.max(Number(objectDistance) || z, 0.05);
-    const halfW = _vizHalfWidth(result.fov.hfov_deg, z, objZ);
+    const halfW =
+      result.coverage.width_m !== null
+        ? result.coverage.width_m / 2
+        : _fallbackHalfWidth(z, objZ);
     const vfovRad = (result.fov.vfov_deg * Math.PI) / 180;
-    const halfH = Math.min(z * Math.tan(vfovRad / 2), halfW * 0.75);
+    const halfH =
+      result.coverage.height_m !== null
+        ? result.coverage.height_m / 2
+        : Math.min(z * Math.tan(vfovRad / 2), halfW * 0.75);
 
-    // Вершина frustum = позиция камеры (НЕ пол!)
+    // The frustum apex is the camera position, not the floor projection.
     const apex = new THREE.Vector3(0, camY, 0);
 
-    // Плоскость покрытия: перпендикулярна оптической оси −Z,
-    // центр на оптической оси (0, camY, −z)
+    // The coverage plane is normal to the negative-Z optical axis.
     const corners = [
       new THREE.Vector3(-halfW, camY - halfH, -z),
       new THREE.Vector3(halfW, camY - halfH, -z),
@@ -422,10 +420,8 @@ const Scene3D = (function () {
       planeZ: z,
     };
 
-    // DORI в top-view: клин (трапеция) на полу от камеры до дистанции dist.
-    // Это именно «плановый след» HFOV, а не пересечение лучей с полом.
-    // DORI на полу (ближе → дальше): Identification, Recognition, Observation, Detection
-    // Цвета совпадают с UI (--id / --rec / --obs / --det в style.css).
+    // Top-view DORI wedges show the horizontal FOV footprint by distance.
+    // Colors match --id / --rec / --obs / --det in style.css.
     const doriColors = [0x58a6ff, 0x3fb950, 0xd29922, 0xf85149];
     const doriKeys = ['detection_m', 'observation_m', 'recognition_m', 'identification_m'];
     let doriCount = 0;
@@ -433,10 +429,10 @@ const Scene3D = (function () {
     doriKeys.forEach((key, i) => {
       const dist = result.dori[key];
       if (!dist || dist <= 0) return;
-      const rw = _vizHalfWidth(result.fov.hfov_deg, dist, dist);
-      const y = 0.02 + i * 0.002; // небольшой z-fighting offset
+      const rw = _vizHalfWidth(result.fov.hfov_deg, dist);
+      const y = 0.02 + i * 0.002; // Avoid z-fighting between nested wedges.
 
-      // вершина у камеры (на проекции на пол), основание на z=-dist
+      // The apex is below the camera; the base lies at z=-dist.
       const p0 = new THREE.Vector3(0, y, 0);
       const p1 = new THREE.Vector3(-rw, y, -dist);
       const p2 = new THREE.Vector3(rw, y, -dist);
@@ -461,10 +457,9 @@ const Scene3D = (function () {
 
     const proj = result && result.projection ? result.projection : null;
     const yOff = proj && proj.object_offset_y_m !== undefined ? Number(proj.object_offset_y_m) || 0.0 : 0.0;
-    // objectOffsetZ по имени "z", но семантически это X-сдвиг (влево/вправо на камере).
-    const xOff = proj && proj.object_offset_z_m !== undefined ? Number(proj.object_offset_z_m) || 0.0 : 0.0;
+    const xOff = proj && proj.object_offset_x_m !== undefined ? Number(proj.object_offset_x_m) || 0.0 : 0.0;
 
-    // Объект — с редактируемым сдвигом по X/Y относительно камеры
+    // Place the object using its projected X/Y offsets.
     if (objectDims) {
       const oz = objZ;
       const id = objectId || 'cola_can';
@@ -503,7 +498,7 @@ const Scene3D = (function () {
         objectGroup.add(lastMeshHolder);
       });
 
-      // Вертикаль к полу (чтобы видеть высоту установки / зависание над полом)
+      // Vertical guide to the floor.
       const drop = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(xOff, camY + yOff - objectDims.height_m / 2, -oz),
@@ -521,22 +516,21 @@ const Scene3D = (function () {
       objectGroup.add(drop);
 
       const label = makeTextSprite(objectDims.label || objectId);
-      // Уменьшаем "квадрат" и поднимаем подпись над верхней гранью.
+      // Keep the marker compact and place the label above it.
       label.position.set(xOff, camY + yOff + objectDims.height_m / 2 + 0.25, -oz);
       label.scale.set(0.9, 0.45, 1);
       objectGroup.add(label);
     }
 
-    // Экспортируем чуть-чуть состояния для UI-тестов
+    // Expose minimal deterministic state for UI tests.
     if (lastGeometry) lastGeometry.doriCount = doriCount;
 
-    // Фреймить сцену только при первом показе или смене высоты установки.
-    // Берём в максимум и DORI, чтобы было видно Identification (красную) зону.
+    // Reframe only initially or after a mounting-height change.
     const mountChanged = lastMountY === null || Math.abs(lastMountY - camY) > 0.05;
     if (!framedOnce || mountChanged) {
       const dists = doriKeys.map((k) => result.dori && result.dori[k]).filter((v) => typeof v === 'number');
       const maxDori = dists.length ? Math.max(...dists) : z;
-      // Для наглядности: если объект близко, держим камеру ближе, чтобы было видно ориентацию.
+      // Keep the overview camera close enough to show nearby object orientation.
       const objZ = result.projection && result.projection.object_distance_m ? result.projection.object_distance_m : z;
       frameView(camY, Math.max(z, Math.min(maxDori, Math.max(objZ * 2.2, z))), halfW);
       framedOnce = true;

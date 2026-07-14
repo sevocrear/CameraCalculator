@@ -12,6 +12,7 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 COPY models ./models
 ENV PATH="/app/.venv/bin:$PATH"
+ENV MODELS_DIR="/app/models"
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=15s \
@@ -35,5 +36,6 @@ COPY models ./models
 COPY tests ./tests
 COPY scripts ./scripts
 ENV PATH="/app/.venv/bin:$PATH"
+ENV MODELS_DIR="/app/models"
 RUN playwright install chromium
 CMD ["pytest", "-v", "--tb=short"]

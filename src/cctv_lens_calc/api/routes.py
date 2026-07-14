@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from cctv_lens_calc import __version__
 from cctv_lens_calc.domain.calculator import calculate
-from cctv_lens_calc.domain.models import CalculateRequest, CalculateResponse, LensType
+from cctv_lens_calc.domain.models import CalculateRequest, CalculateResponse
 from cctv_lens_calc.domain.presets import (
     CAMERA_PRESETS,
     CV_THRESHOLDS,
@@ -98,8 +98,8 @@ def presets_objects() -> list[dict]:
             "depth_m": o.depth_m,
             "cv_threshold_px": o.cv_threshold_px,
             "orientation": o.orientation.value,
+            "model_offset_x_m": o.model_offset_x_m,
             "model_offset_y_m": o.model_offset_y_m,
-            "model_offset_z_m": o.model_offset_z_m,
             "model_mesh_offset_x_m": o.model_mesh_offset_x_m,
             "model_mesh_offset_y_m": o.model_mesh_offset_y_m,
             "model_mesh_offset_z_m": o.model_mesh_offset_z_m,

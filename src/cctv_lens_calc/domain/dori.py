@@ -27,7 +27,7 @@ def distance_for_coverage_ppm(
         Distance in meters.
     """
     if coverage_width_per_m <= 0:
-        return float("inf")
+        raise ValueError("coverage_width_per_m must be positive")
     return resolution_w / (required_ppm * coverage_width_per_m)
 
 
@@ -39,7 +39,7 @@ def distance_for_ppm(
 ) -> float:
     """Pinhole-only DORI distance (JVSG: W = Z * sensor_w / f).
 
-    Prefer ``distance_for_coverage_ppm`` when HFOV/coverage caps are known.
+    Prefer ``distance_for_coverage_ppm`` when using another lens model.
     """
     return (resolution_w * focal_length_mm) / (required_ppm * sensor_width_mm)
 

@@ -1,11 +1,12 @@
 """Pydantic models for camera geometry calculations."""
 
-from enum import Enum
+from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import BaseModel, Field, model_validator
 
 
-class LensType(str, Enum):
+class LensType(StrEnum):
     """Optical projection model."""
 
     RECTILINEAR = "rectilinear"
@@ -15,8 +16,11 @@ class LensType(str, Enum):
 class CameraParams(BaseModel):
     """Camera and mount parameters."""
 
+    _MAX_FRAME_PIXELS: ClassVar[int] = 33_177_600  # 8K UHD: 7680 × 4320
+
     sensor_format_id: str | None = Field(
         default=None,
+        max_length=64,
         description="Optical format preset id (e.g. 1_2_8_inch); resolves WxH in mm",
     )
     sensor_width_mm: float | None = Field(
@@ -25,9 +29,15 @@ class CameraParams(BaseModel):
     sensor_height_mm: float | None = Field(
         default=None, gt=0, description="Sensor height in mm (optional if format_id set)"
     )
-    resolution_w: int = Field(gt=0, description="Horizontal resolution in px")
-    resolution_h: int = Field(gt=0, description="Vertical resolution in px")
-    focal_length_mm: float = Field(gt=0, description="Focal length in mm")
+    resolution_w: int = Field(gt=0, le=8192, description="Horizontal resolution in px")
+    resolution_h: int = Field(gt=0, le=8192, description="Vertical resolution in px")
+    focal_length_mm: float = Field(
+        gt=0,
+        description=(
+            "Focal length in mm; for calibrated fisheye requests, "
+            "fisheye_fov_deg determines the effective focal length"
+        ),
+    )
     lens_type: LensType = LensType.RECTILINEAR
     fisheye_fov_deg: float | None = Field(
         default=None,
@@ -51,24 +61,28 @@ class CameraParams(BaseModel):
             object.__setattr__(self, "sensor_height_mm", sensor.height_mm)
         elif self.sensor_width_mm is None or self.sensor_height_mm is None:
             raise ValueError(
-                "Either sensor_format_id or both sensor_width_mm and sensor_height_mm "
-                "are required"
+                "Either sensor_format_id or both sensor_width_mm and sensor_height_mm are required"
             )
+        if self.resolution_w * self.resolution_h > self._MAX_FRAME_PIXELS:
+            raise ValueError(f"Frame may not exceed {self._MAX_FRAME_PIXELS} pixels (8K UHD)")
         return self
 
 
 class ObjectParams(BaseModel):
     """Reference or custom object for pixel projection."""
 
-    object_id: str = "cola_can"
+    object_id: str = Field(default="cola_can", max_length=64)
     object_width_m: float | None = Field(default=None, gt=0)
     object_height_m: float | None = Field(default=None, gt=0)
     object_distance_m: float | None = Field(default=None, ge=0.01, le=100.0)
-    # Offsets of the object center relative to the camera coordinate frame:
-    # - +Y means higher than camera mount height
-    # - +Z means further away from the camera along the optical axis
+    # Offsets of the object center relative to the camera coordinate frame.
     object_offset_y_m: float = Field(default=0.0, ge=-10.0, le=10.0)
-    object_offset_z_m: float = Field(default=0.0, ge=-10.0, le=10.0)
+    object_offset_x_m: float = Field(
+        default=0.0,
+        ge=-10.0,
+        le=10.0,
+        description="Lateral offset: positive values move the object right",
+    )
 
 
 class CalculateRequest(BaseModel):
@@ -89,17 +103,18 @@ class FovMetrics(BaseModel):
 class CoverageMetrics(BaseModel):
     """Scene footprint at target distance."""
 
-    width_m: float
-    height_m: float
+    width_m: float | None
+    height_m: float | None
     distance_m: float
 
 
 class DensityMetrics(BaseModel):
     """Pixel density at target distance."""
 
-    ppm: float
-    ppc: float
-    gsd_mm_per_px: float
+    ppm: float | None
+    ppc: float | None
+    gsd_mm_per_px: float | None
+    basis: str
 
 
 class PixelProjection(BaseModel):
@@ -115,10 +130,9 @@ class PixelProjection(BaseModel):
     object_width_m: float
     object_height_m: float
     object_depth_m: float
-    # Model alignment (presets/config):
-    # how the object "center point" is shifted relative to the camera when projecting.
+    # Model alignment in the camera coordinate frame.
     object_offset_y_m: float
-    object_offset_z_m: float
+    object_offset_x_m: float
     orientation: str
     aspect_wh: float
     cv_pass: bool
@@ -128,10 +142,11 @@ class PixelProjection(BaseModel):
 class DoriDistances(BaseModel):
     """EN 62676-4 distance thresholds in meters."""
 
-    detection_m: float
-    observation_m: float
-    recognition_m: float
-    identification_m: float
+    detection_m: float | None
+    observation_m: float | None
+    recognition_m: float | None
+    identification_m: float | None
+    basis: str
 
 
 class CalculateResponse(BaseModel):
@@ -142,3 +157,4 @@ class CalculateResponse(BaseModel):
     density: DensityMetrics
     dori: DoriDistances
     projection: PixelProjection | None = None
+    warnings: list[str] = Field(default_factory=list)

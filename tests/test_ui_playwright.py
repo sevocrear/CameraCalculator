@@ -3,7 +3,6 @@
 import httpx
 import pytest
 
-
 pytestmark = pytest.mark.ui
 
 
@@ -70,7 +69,9 @@ def test_3d_scene_initialized(page):
     }"""
     )
     assert has_webgl
-    has_controls = page.evaluate("() => typeof THREE !== 'undefined' && typeof THREE.OrbitControls === 'function'")
+    has_controls = page.evaluate(
+        "() => typeof THREE !== 'undefined' && typeof THREE.OrbitControls === 'function'"
+    )
     assert has_controls
 
 
@@ -103,3 +104,49 @@ def test_share_url_restores_state(page, base_url: str):
     assert page.locator("#cameraPreset").input_value() == "fisheye_camera"
     assert page.locator("#distance").input_value() == "0.4"
     assert page.locator("#lensType").input_value() == "fisheye_equidistant"
+
+
+def test_share_url_restores_manual_fisheye_fov(page, base_url: str):
+    page.goto(f"{base_url}/?preset=fisheye_camera", wait_until="domcontentloaded")
+    page.wait_for_function("() => document.getElementById('metricHfov').textContent !== '—'")
+    page.locator("#fisheyeFov").fill("175")
+    page.locator("#fisheyeFov").dispatch_event("input")
+    page.wait_for_function("() => document.getElementById('metricHfov').textContent === '175°'")
+    shared_url = page.url
+
+    page.goto(shared_url, wait_until="domcontentloaded")
+    page.wait_for_function("() => document.getElementById('metricHfov').textContent === '175°'")
+    assert page.locator("#fisheyeFov").input_value() == "175"
+
+
+@pytest.mark.parametrize("width,height", [(1280, 720), (1440, 900), (1920, 1080)])
+def test_desktop_layout_fits_without_document_scroll(page, width: int, height: int):
+    page.set_viewport_size({"width": width, "height": height})
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_function("() => document.getElementById('metricHfov').textContent !== '—'")
+    layout = page.evaluate(
+        """() => {
+          const panels = ['.sidebar', '.viewport-panel', '.metrics-panel', '.dori-panel'];
+          return {
+            viewport: [innerWidth, innerHeight],
+            document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+            panels: panels.map((selector) => {
+              const rect = document.querySelector(selector).getBoundingClientRect();
+              return {
+                selector,
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+              };
+            }),
+          };
+        }"""
+    )
+    assert layout["document"][0] <= layout["viewport"][0] + 1
+    assert layout["document"][1] <= layout["viewport"][1] + 1
+    for panel in layout["panels"]:
+        assert panel["left"] >= -1
+        assert panel["top"] >= -1
+        assert panel["right"] <= width + 1
+        assert panel["bottom"] <= height + 1

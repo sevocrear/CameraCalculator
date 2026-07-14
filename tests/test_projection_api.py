@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 import pytest
@@ -42,21 +41,21 @@ def _build_request(cfg: dict, object_id: str) -> CalculateRequest:
         object=ObjectParams(
             object_id=object_id,
             object_distance_m=cfg["object_distance_m"],
-            object_offset_z_m=cfg.get("object_offset_z_m", 0.0),
+            object_offset_x_m=cfg.get("object_offset_x_m", 0.0),
             object_offset_y_m=cfg.get("object_offset_y_m", 0.0),
         ),
     )
 
 
-def test_fisheye_180_coverage_and_density_finite():
-    """Regression: 180° fisheye must not overflow coverage/PPM."""
+def test_fisheye_180_coverage_and_density_are_unavailable():
+    """A 180° edge ray has no finite intercept on the forward plane."""
     cfg = next(c for c in MATRIX if c["id"] == "F180")
     result = calculate(_build_request(cfg, "cola_can"))
-    assert math.isfinite(result.coverage.width_m)
-    assert math.isfinite(result.coverage.height_m)
-    assert result.coverage.width_m <= 2.0 * cfg["distance_m"] + 0.01
-    assert result.density.ppm > 0
-    assert result.density.ppm < 1e6
+    assert result.coverage.width_m is None
+    assert result.coverage.height_m is not None
+    assert result.density.ppm is None
+    assert result.dori.identification_m is None
+    assert result.warnings
 
 
 def test_fisheye_180_focal_not_zero():
@@ -108,13 +107,12 @@ def test_projection_positive_pixels(cfg_id, object_id):
     assert 0 <= p.center_v_px <= cfg["resolution_h"]
 
 
-def test_pinhole_safe_tan_at_180():
-    cov = pinhole.coverage_m(180.0, 3.0)
-    assert math.isfinite(cov)
-    assert cov < 1e6
+def test_pinhole_180_forward_plane_coverage_is_unbounded():
+    assert pinhole.coverage_m(180.0, 3.0) is None
 
 
 def test_all_reference_objects_have_dims():
     for oid, ref in REFERENCE_OBJECTS.items():
         assert ref.width_m > 0
         assert ref.height_m > 0
+    assert REFERENCE_OBJECTS["car"].label == "Авто"

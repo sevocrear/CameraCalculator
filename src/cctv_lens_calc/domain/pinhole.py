@@ -2,15 +2,6 @@
 
 import math
 
-# tan(90°) ломает coverage/frustum — для визуализации и PPM cap на 89.95°.
-_MAX_HALF_FOV_DEG = 89.95
-
-
-def safe_tan_half_fov(fov_deg_val: float) -> float:
-    """tan(FOV/2) with cap so wide-angle math stays finite."""
-    half_deg = min(fov_deg_val / 2.0, _MAX_HALF_FOV_DEG)
-    return math.tan(math.radians(half_deg))
-
 
 def fov_deg(sensor_dim_mm: float, focal_length_mm: float) -> float:
     """Field of view angle in degrees for one sensor dimension.
@@ -25,7 +16,7 @@ def fov_deg(sensor_dim_mm: float, focal_length_mm: float) -> float:
     return math.degrees(2.0 * math.atan(sensor_dim_mm / (2.0 * focal_length_mm)))
 
 
-def coverage_m(fov_deg_val: float, distance_m: float) -> float:
+def coverage_m(fov_deg_val: float, distance_m: float) -> float | None:
     """Scene width or height at perpendicular distance Z.
 
     Args:
@@ -33,9 +24,12 @@ def coverage_m(fov_deg_val: float, distance_m: float) -> float:
         distance_m: Distance to scene plane in meters.
 
     Returns:
-        Coverage dimension in meters: 2 * Z * tan(FOV/2).
+        Coverage dimension in meters, or ``None`` at the 180-degree horizon.
     """
-    return 2.0 * distance_m * safe_tan_half_fov(fov_deg_val)
+    half_fov_deg = fov_deg_val / 2.0
+    if half_fov_deg >= 90.0:
+        return None
+    return 2.0 * distance_m * math.tan(math.radians(half_fov_deg))
 
 
 def ppm_at_distance(
@@ -48,8 +42,7 @@ def ppm_at_distance(
 
     PPM = resolution_w / coverage_width_m.
     """
-    hfov = fov_deg(sensor_width_mm, focal_length_mm)
-    width_m = coverage_m(hfov, distance_m)
+    width_m = distance_m * sensor_width_mm / focal_length_mm
     return resolution_w / width_m
 
 
@@ -80,12 +73,6 @@ def object_pixels(
     Returns:
         (width_px, height_px)
     """
-    px_w = (
-        object_width_m * resolution_w * focal_length_mm
-        / (object_distance_m * sensor_width_mm)
-    )
-    px_h = (
-        object_height_m * resolution_h * focal_length_mm
-        / (object_distance_m * sensor_height_mm)
-    )
+    px_w = object_width_m * resolution_w * focal_length_mm / (object_distance_m * sensor_width_mm)
+    px_h = object_height_m * resolution_h * focal_length_mm / (object_distance_m * sensor_height_mm)
     return px_w, px_h

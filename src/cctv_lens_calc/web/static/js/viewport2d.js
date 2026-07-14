@@ -1,7 +1,7 @@
-/** 2D вид камеры: pinhole-проекция на сенсор resolution_w × resolution_h.
+/** 2D camera view on a resolution_w × resolution_h sensor canvas.
  *
- * Внутренний canvas = размер сенсора в пикселях (1 px кадра = 1 px canvas).
- * CSS масштабирует отображение с сохранением aspect-ratio из resolution W/H.
+ * The internal canvas matches the sensor resolution. CSS scales it while
+ * preserving the configured aspect ratio.
  */
 
 const Viewport2D = (function () {
@@ -154,7 +154,7 @@ const Viewport2D = (function () {
       cameraParams.fisheye_fov_deg
     ) {
       const thetaMaxRad = _degToRad(cameraParams.fisheye_fov_deg / 2.0);
-      // Equidistant: f = (sensor/2) / theta_max — НЕ tan(theta).
+      // Equidistant calibration uses f = (sensor/2) / theta_max, not tan(theta).
       return (cameraParams.sensor_width_mm / 2.0) / Math.max(thetaMaxRad, 1e-9);
     }
     return cameraParams.focal_length_mm;
@@ -174,7 +174,7 @@ const Viewport2D = (function () {
     if (!_offscreenScene) {
       _offscreenScene = new THREE.Scene();
       _offscreenScene.background = null;
-      // Яркий ambient + key за камерой (камера смотрит в −Z).
+      // Ambient light plus a key light behind the camera, which faces negative Z.
       _offscreenScene.add(new THREE.AmbientLight(0xffffff, 0.95));
       _offscreenScene.add(new THREE.HemisphereLight(0xffffff, 0xb0b8c0, 0.55));
       _offscreenKeyLight = new THREE.DirectionalLight(0xffffff, 1.35);
@@ -223,7 +223,11 @@ const Viewport2D = (function () {
     _ensureOffscreen(W, H);
 
     const fEff = _effectiveFocalMm(cameraParams);
-    const vfovDeg = (2.0 * Math.atan(cameraParams.sensor_height_mm / (2.0 * Math.max(fEff, 1e-9)))) * (180.0 / Math.PI);
+    const vfovDeg =
+      cameraParams.lens_type === 'fisheye_equidistant'
+        ? (cameraParams.sensor_height_mm / Math.max(fEff, 1e-9)) * (180.0 / Math.PI)
+        : (2.0 * Math.atan(cameraParams.sensor_height_mm / (2.0 * Math.max(fEff, 1e-9)))) *
+          (180.0 / Math.PI);
     _offscreenCamera.fov = vfovDeg;
     _offscreenCamera.aspect = W / H;
     _offscreenCamera.near = 0.05;
@@ -234,7 +238,7 @@ const Viewport2D = (function () {
     _offscreenCamera.position.set(0, world.camY, 0);
     _offscreenCamera.lookAt(0, world.camY, -1);
 
-    // Key light: за камерой и выше — светит на сторону объекта, обращённую к объективу.
+    // Place the key light above and behind the camera to illuminate the object front.
     if (_offscreenKeyLight) {
       const objZ = -Math.max(Number(proj.object_distance_m) || 1, 0.2);
       _offscreenKeyLight.position.set(0, world.camY + 2.5, 4);
@@ -272,7 +276,7 @@ const Viewport2D = (function () {
       };
       _lastScreenBBox = _screenBBoxFromMesh(_offscreenCamera, instance, W, H);
       const phys = _screenBBoxFromPhysicalBox(_offscreenCamera, w, dims, W, H);
-      // Для pinhole-рендера физический AABB — эталон совпадения с API.
+      // For pinhole rendering, the physical AABB is the API alignment reference.
       if (!cameraParams || cameraParams.lens_type !== 'fisheye_equidistant') {
         _lastScreenBBox = phys;
       }

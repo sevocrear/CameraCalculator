@@ -1,5 +1,28 @@
-# Ignore local venv and caches
+# Version control and automation metadata
+.git/
+.github/
+
+# Local environments and secrets
 .venv/
+.env
+.env.*
+
+# Python and test artifacts
 __pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.hypothesis/
+.mypy_cache/
 .pytest_cache/
-*.pyc
+.ruff_cache/
+htmlcov/
+playwright-report/
+test-results/
+
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

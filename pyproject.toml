@@ -4,6 +4,29 @@ version = "0.1.0"
 description = "CameraCalculator — FOV, PPM and object projection for camera selection"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Ilia Sevostianov" },
+]
+keywords = [
+    "camera",
+    "cctv",
+    "dori",
+    "field-of-view",
+    "fisheye",
+    "pinhole",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
@@ -17,6 +40,7 @@ dev = [
     "httpx>=0.28.0",
     "hypothesis>=6.120.0",
     "playwright>=1.49.0",
+    "ruff>=0.12.0",
 ]
 
 [build-system]
@@ -32,3 +56,10 @@ asyncio_mode = "auto"
 markers = [
     "ui: Playwright browser tests",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

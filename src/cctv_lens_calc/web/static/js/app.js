@@ -38,6 +38,20 @@
     const fovField = $('fisheyeFovField');
     if (fovField) fovField.hidden = !fisheye;
     $('fisheyeDisclaimer').hidden = !fisheye;
+    $('focal').disabled = fisheye;
+    if ($('focalSlider')) $('focalSlider').disabled = fisheye;
+    if (fisheye) syncFisheyeFocal();
+  }
+
+  function syncFisheyeFocal() {
+    if ($('lensType').value !== 'fisheye_equidistant') return;
+    const sensor = getSelectedSensor();
+    const fovDeg = parseFloat($('fisheyeFov').value);
+    if (!sensor || !Number.isFinite(fovDeg) || fovDeg <= 0) return;
+    const halfAngleRad = (fovDeg * Math.PI) / 360.0;
+    const effectiveFocal = (sensor.width_mm / 2.0) / halfAngleRad;
+    $('focal').value = effectiveFocal.toFixed(3);
+    if ($('focalSlider')) $('focalSlider').value = effectiveFocal;
   }
 
   function setLensType(value) {
@@ -63,6 +77,14 @@
   function updateDoriBar(dori) {
     const bar = $('doriBar');
     if (!bar || !dori) return;
+    const available = [
+      dori.detection_m,
+      dori.observation_m,
+      dori.recognition_m,
+      dori.identification_m,
+    ].some((value) => value !== null);
+    bar.hidden = !available;
+    if (!available) return;
     const vals = [
       Math.max(dori.detection_m || 0, 0.01),
       Math.max(dori.observation_m || 0, 0.01),
@@ -73,6 +95,36 @@
     segs.forEach((seg, i) => {
       seg.style.flex = String(vals[i]);
     });
+  }
+
+  function formatMetric(value, suffix = '') {
+    return value === null || value === undefined ? 'N/A' : `${value}${suffix}`;
+  }
+
+  function renderDoriList(dori) {
+    const list = $('doriList');
+    list.replaceChildren();
+    const entries = [
+      ['det', 'doriDet', 'Detection', dori.detection_m],
+      ['obs', 'doriObs', 'Observation', dori.observation_m],
+      ['rec', 'doriRec', 'Recognition', dori.recognition_m],
+      ['id', 'doriId', 'Identification', dori.identification_m],
+    ];
+    entries.forEach(([className, helpKey, label, value]) => {
+      const item = document.createElement('li');
+      item.className = className;
+      item.dataset.help = helpKey;
+      item.tabIndex = 0;
+      item.textContent = `${label}: ${formatMetric(value, ' m')}`;
+      list.appendChild(item);
+    });
+  }
+
+  function showWarnings(warnings) {
+    const element = $('metricWarnings');
+    const messages = Array.isArray(warnings) ? warnings : [];
+    element.hidden = messages.length === 0;
+    element.textContent = messages.join(' ');
   }
 
   function readParams() {
@@ -102,11 +154,19 @@
   }
 
   function updateShareUrl() {
-    const preset = $('cameraPreset').value;
-    const z = $('distance').value;
-    const obj = selectedObjectId;
-    const oz = $('objectDistance').value;
-    const q = new URLSearchParams({ preset, z, obj, oz });
+    const q = new URLSearchParams({
+      preset: $('cameraPreset').value,
+      sensor: $('sensorFormat').value,
+      rw: $('resW').value,
+      rh: $('resH').value,
+      focal: $('focal').value,
+      lens: $('lensType').value,
+      ffov: $('fisheyeFov').value,
+      z: $('distance').value,
+      mh: $('mountHeight').value,
+      obj: selectedObjectId,
+      oz: $('objectDistance').value,
+    });
     history.replaceState(null, '', `/?${q.toString()}`);
   }
 
@@ -117,7 +177,10 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error('calculate failed');
+    if (!res.ok) {
+      const error = await res.json().catch(() => null);
+      throw new Error(error && error.detail ? JSON.stringify(error.detail) : 'Calculation failed');
+    }
     return res.json();
   }
 
@@ -126,10 +189,11 @@
     $('metricHfov').textContent = `${result.fov.hfov_deg}°`;
     $('metricVfov').textContent = `${result.fov.vfov_deg}°`;
     $('metricDfov').textContent = `${result.fov.dfov_deg}°`;
-    $('metricCoverage').textContent = `${result.coverage.width_m} × ${result.coverage.height_m} m`;
-    $('metricPpm').textContent = String(result.density.ppm);
-    $('metricPpc').textContent = String(result.density.ppc);
-    $('metricGsd').textContent = `${result.density.gsd_mm_per_px} mm/px`;
+    $('metricCoverage').textContent =
+      `${formatMetric(result.coverage.width_m)} × ${formatMetric(result.coverage.height_m)} m`;
+    $('metricPpm').textContent = formatMetric(result.density.ppm);
+    $('metricPpc').textContent = formatMetric(result.density.ppc);
+    $('metricGsd').textContent = formatMetric(result.density.gsd_mm_per_px, ' mm/px');
 
     if (result.projection) {
       const p = result.projection;
@@ -141,13 +205,13 @@
       el.className = 'cv-pass ' + (p.cv_pass ? 'pass' : 'fail');
     }
 
-    $('doriList').innerHTML = `
-      <li class="det" data-help="doriDet" tabindex="0">Detection: ${result.dori.detection_m} m</li>
-      <li class="obs" data-help="doriObs" tabindex="0">Observation: ${result.dori.observation_m} m</li>
-      <li class="rec" data-help="doriRec" tabindex="0">Recognition: ${result.dori.recognition_m} m</li>
-      <li class="id" data-help="doriId" tabindex="0">Identification: ${result.dori.identification_m} m</li>
-    `;
+    renderDoriList(result.dori);
     updateDoriBar(result.dori);
+    const warnings = [...(result.warnings || [])];
+    if (result.coverage.width_m === null) {
+      warnings.push('The finite 3D frustum is a display-only fallback and is not to scale.');
+    }
+    showWarnings(warnings);
     initTooltips();
 
     const obj = objects.find((o) => o.id === selectedObjectId);
@@ -162,8 +226,6 @@
       mountH,
       obj,
       objDist,
-      0,
-      0,
       $('lensType').value,
       selectedObjectId
     );
@@ -180,6 +242,7 @@
         applyResult(result);
       } catch (e) {
         console.error(e);
+        showWarnings([e.message || 'Calculation failed']);
       }
     }, DEBOUNCE_MS);
   }
@@ -239,9 +302,13 @@
   }
 
   function bindInputs() {
-    ['resW', 'resH', 'fisheyeFov', 'focal'].forEach((id) =>
+    ['resW', 'resH', 'focal'].forEach((id) =>
       $(id).addEventListener('input', scheduleRecalc)
     );
+    $('fisheyeFov').addEventListener('input', () => {
+      syncFisheyeFocal();
+      scheduleRecalc();
+    });
     $('focal').addEventListener('input', () => {
       if ($('focalSlider')) $('focalSlider').value = $('focal').value;
     });
@@ -257,6 +324,7 @@
     });
     $('sensorFormat').addEventListener('change', () => {
       updateSensorDimsLabel();
+      syncFisheyeFocal();
       scheduleRecalc();
     });
     $('lensType').addEventListener('change', () => {
@@ -298,14 +366,32 @@
   function parseUrlState() {
     const q = new URLSearchParams(window.location.search);
     if (q.has('preset')) $('cameraPreset').value = q.get('preset');
-    if (q.has('z')) {
-      $('distance').value = q.get('z');
-      $('distanceVal').textContent = q.get('z');
-    }
     if (q.has('obj')) selectedObjectId = q.get('obj');
-    if (q.has('oz')) {
-      $('objectDistance').value = q.get('oz');
-      $('objectDistanceVal').textContent = q.get('oz');
+    return q;
+  }
+
+  function applyUrlOverrides(q) {
+    const directValues = {
+      sensor: 'sensorFormat',
+      rw: 'resW',
+      rh: 'resH',
+      focal: 'focal',
+      lens: 'lensType',
+      ffov: 'fisheyeFov',
+      z: 'distance',
+      mh: 'mountHeight',
+      oz: 'objectDistance',
+    };
+    Object.entries(directValues).forEach(([queryKey, elementId]) => {
+      if (q.has(queryKey)) $(elementId).value = q.get(queryKey);
+    });
+    if ($('focalSlider')) $('focalSlider').value = $('focal').value;
+    $('distanceVal').textContent = $('distance').value;
+    $('mountHeightVal').textContent = $('mountHeight').value;
+    $('objectDistanceVal').textContent = $('objectDistance').value;
+    syncLensSegment();
+    if ($('lensType').value === 'fisheye_equidistant') {
+      syncFisheyeFocal();
     }
   }
 
@@ -330,8 +416,9 @@
     });
 
     buildSensorSelect();
-    parseUrlState();
+    const query = parseUrlState();
     applyCameraPreset($('cameraPreset').value);
+    applyUrlOverrides(query);
     buildObjectTabs();
     bindInputs();
     syncLensSegment();

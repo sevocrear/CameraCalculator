@@ -35,8 +35,8 @@
     },
     "object": { "object_id": "cola_can", "object_distance_m": 0.45 },
     "expected": {
-      "projection_width_px": 146.8,
-      "projection_height_px": 266.9,
+      "projection_width_px": 158.5,
+      "projection_height_px": 288.2,
       "tolerance_pct": 1.0
     }
   },
@@ -74,8 +74,8 @@
     },
     "object": { "object_id": "basket", "object_distance_m": 3.0 },
     "expected": {
-      "projection_width_px": 133.5,
-      "projection_height_px": 116.8,
+      "projection_width_px": 139.3,
+      "projection_height_px": 121.9,
       "tolerance_pct": 2.0
     }
   },

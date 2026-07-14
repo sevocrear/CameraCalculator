@@ -4,10 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CameraCalculator</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=20260714h">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260714k">
   <script src="/static/js/three.min.js"></script>
   <script src="/static/js/OrbitControls.js"></script>
   <script src="/static/js/GLTFLoader.js"></script>
@@ -20,8 +17,12 @@
         <p class="subtitle">FOV · PPM · объект в пикселях</p>
       </div>
       <p class="disclaimer" id="fisheyeDisclaimer" hidden>
-        Fisheye: пиксели на оси кадра. На краях плотность ниже.
+        Fisheye: плотность меняется по кадру; 2D-модель — схематичный силуэт,
+        точные координаты задаёт зелёная рамка.
       </p>
+      <a class="credits-link" href="/models/README.md" target="_blank" rel="license noopener">
+        Model credits
+      </a>
     </header>
 
     <aside class="sidebar" aria-label="Параметры">
@@ -55,10 +56,10 @@
 
       <div class="res-row">
         <label class="field" data-help="resW">Resolution W
-          <input type="number" id="resW" step="1" value="1920">
+          <input type="number" id="resW" min="1" max="8192" step="1" value="1920">
         </label>
         <label class="field" data-help="resH">Resolution H
-          <input type="number" id="resH" step="1" value="1080">
+          <input type="number" id="resH" min="1" max="8192" step="1" value="1080">
         </label>
       </div>
 
@@ -124,6 +125,7 @@
         <div class="object-metrics">
           <p id="metricObjectPx" class="object-px" data-help="metricObjectPx">—</p>
           <p id="metricCvPass" class="cv-pass" data-help="metricCvPass">—</p>
+          <p id="metricWarnings" class="metric-warnings" hidden></p>
         </div>
       </section>
 
@@ -140,10 +142,10 @@
     </main>
   </div>
 
-  <script src="/static/js/model_prep.js?v=20260714h"></script>
-  <script src="/static/js/help.js?v=20260714h"></script>
-  <script src="/static/js/viewport2d.js?v=20260714h"></script>
-  <script src="/static/js/scene3d.js?v=20260714h"></script>
-  <script src="/static/js/app.js?v=20260714h"></script>
+  <script src="/static/js/model_prep.js?v=20260714k"></script>
+  <script src="/static/js/help.js?v=20260714k"></script>
+  <script src="/static/js/viewport2d.js?v=20260714k"></script>
+  <script src="/static/js/scene3d.js?v=20260714k"></script>
+  <script src="/static/js/app.js?v=20260714k"></script>
 </body>
 </html>

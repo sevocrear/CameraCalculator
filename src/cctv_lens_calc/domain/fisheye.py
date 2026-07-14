@@ -2,8 +2,6 @@
 
 import math
 
-from cctv_lens_calc.domain import pinhole
-
 
 def effective_focal_from_fov(sensor_width_mm: float, fisheye_fov_deg: float) -> float:
     """Derive effective focal length from nominal horizontal fisheye FOV.
@@ -28,18 +26,24 @@ def fov_deg(sensor_dim_mm: float, focal_length_mm: float) -> float:
     return math.degrees(2.0 * theta_max_rad)
 
 
-def coverage_m(hfov_deg: float, distance_m: float) -> float:
-    """Scene width at distance Z for equidistant fisheye edge ray.
+def coverage_m(fov_deg_value: float, distance_m: float) -> float | None:
+    """Return the bounded footprint on a plane normal to the optical axis.
 
-    Ray at image edge has angle theta_max = HFOV/2 from optical axis;
-    lateral offset on plane at Z is Z * tan(theta_max). Capped for theta → 90°
-    and for ultra-wide FOV in UI metrics.
+    An edge ray intersects the forward plane only while its incidence angle is
+    below 90 degrees. A 180-degree field of view reaches the horizon and has an
+    unbounded footprint; wider fields also include rays behind the camera.
+
+    Args:
+        fov_deg_value: Horizontal or vertical field of view in degrees.
+        distance_m: Perpendicular distance to the scene plane in meters.
+
+    Returns:
+        Plane coverage in meters, or ``None`` when no bounded footprint exists.
     """
-    theta_max_rad = math.radians(min(hfov_deg / 2.0, pinhole._MAX_HALF_FOV_DEG))
-    raw = 2.0 * distance_m * math.tan(theta_max_rad)
-    if hfov_deg >= 150.0:
-        return min(raw, 2.0 * distance_m)
-    return raw
+    half_fov_deg = fov_deg_value / 2.0
+    if half_fov_deg >= 90.0:
+        return None
+    return 2.0 * distance_m * math.tan(math.radians(half_fov_deg))
 
 
 def object_pixels(

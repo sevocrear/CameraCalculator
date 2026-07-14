@@ -24,7 +24,7 @@ const ModelPrep = (function () {
     return `${objectId}|${orientation}|r:${rotKey}|s:${scaleKey}|v:${visualKey}|m:${meshKey}|d:${dims.height_m}`;
   }
 
-  /** Bake world transforms into mesh geometry — убирает расхождение pivot/матриц узлов GLB. */
+  /** Bake world transforms into geometry to remove GLB pivot/matrix ambiguity. */
   function flattenHierarchy(root) {
     const flat = new THREE.Group();
     root.updateMatrixWorld(true);
@@ -83,7 +83,7 @@ const ModelPrep = (function () {
       const s = Math.min(dims.width_m / width, dims.height_m / height);
       sx = sy = sz = s;
     } else {
-      // Upright, камера смотрит вдоль −Z: в кадре видны extent по X и Y.
+      // Upright objects expose their X/Y extents to a camera facing negative Z.
       sx = dims.width_m / width;
       sy = dims.height_m / height;
       sz = (dims.depth_m || dims.width_m) / depth;
@@ -121,7 +121,7 @@ const ModelPrep = (function () {
       model.updateMatrixWorld(true);
     }
     fitToDims(model, dims, orientation);
-    // После fit к физ. AABB — только визуальный раздув силуэта (матан не трогаем).
+    // Apply visual-only silhouette scaling after fitting the physical AABB.
     applyVisualScale(model, preset);
     return model;
   }
@@ -140,7 +140,7 @@ const ModelPrep = (function () {
     const camY = Math.max(Number(mountHeight) || 0, 0.05);
     return {
       camY,
-      x: Number(proj.object_offset_z_m) || 0,
+      x: Number(proj.object_offset_x_m) || 0,
       y: camY + (Number(proj.object_offset_y_m) || 0),
       z: -Math.max(Number(proj.object_distance_m) || 0.5, 0.05),
     };

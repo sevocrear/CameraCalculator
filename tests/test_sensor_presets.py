@@ -39,6 +39,12 @@ def test_camera_presets_reference_valid_sensor():
         assert sensor is not None, f"{cam_id} -> missing {cam.sensor_id}"
 
 
+def test_hikvision_preset_uses_official_datasheet():
+    preset = CAMERA_PRESETS["hikvision_ds_2cd2183g2_is"]
+    assert preset.datasheet_url is not None
+    assert preset.datasheet_url.startswith("https://www.hikvision.com/")
+
+
 def test_sensor_format_id_resolves_mm():
     cam = CameraParams(
         sensor_format_id="1_3_inch",
@@ -74,6 +80,16 @@ def test_unknown_sensor_format_raises():
         )
 
 
+def test_frame_resolution_is_bounded():
+    with pytest.raises(ValueError, match="8K UHD"):
+        CameraParams(
+            sensor_format_id="1_2_8_inch",
+            resolution_w=8192,
+            resolution_h=8192,
+            focal_length_mm=2.8,
+        )
+
+
 def test_larger_format_wider_hfov_at_same_focal():
     f_mm = 2.8
     small = get_sensor("1_3_inch")
@@ -98,7 +114,5 @@ def test_fov_identity_hfov_formula():
     from cctv_lens_calc.domain.calculator import calculate
     from cctv_lens_calc.domain.models import CalculateRequest, ObjectParams
 
-    result = calculate(
-        CalculateRequest(camera=cam, object=ObjectParams(object_id="cola_can"))
-    )
+    result = calculate(CalculateRequest(camera=cam, object=ObjectParams(object_id="cola_can")))
     assert result.fov.hfov_deg == pytest.approx(expected, rel=1e-4)

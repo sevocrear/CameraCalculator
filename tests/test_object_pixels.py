@@ -4,6 +4,7 @@ import pytest
 
 from cctv_lens_calc.domain.calculator import calculate
 from cctv_lens_calc.domain.models import CalculateRequest, CameraParams, LensType, ObjectParams
+from cctv_lens_calc.domain.reference_objects import get_object
 
 
 def test_cola_can_pixels_close_up():
@@ -21,8 +22,13 @@ def test_cola_can_pixels_close_up():
     )
     result = calculate(req)
     assert result.projection is not None
-    assert result.projection.width_px == pytest.approx(146.8, rel=0.01)
-    assert result.projection.height_px == pytest.approx(266.9, rel=0.01)
+    obj = get_object("cola_can")
+    assert obj is not None
+    near_distance = 0.45 - obj.depth_m / 2.0
+    expected_width = obj.width_m * 2.8 / near_distance / 5.37 * 1920
+    expected_height = obj.height_m * 2.8 / near_distance / 3.02 * 1080
+    assert result.projection.width_px == pytest.approx(expected_width, rel=0.002)
+    assert result.projection.height_px == pytest.approx(expected_height, rel=0.002)
     assert result.projection.center_u_px == pytest.approx(960.0, abs=0.5)
     assert result.projection.center_v_px == pytest.approx(540.0, abs=0.5)
 
@@ -41,7 +47,7 @@ def test_projection_center_shifts_with_offset():
             object_id="cola_can",
             object_distance_m=1.0,
             object_offset_y_m=0.1,
-            object_offset_z_m=0.05,
+            object_offset_x_m=0.05,
         ),
     )
     p = calculate(req).projection
@@ -64,9 +70,7 @@ def test_resolution_scales_pixel_projection():
     )
     hd = base.model_copy(
         update={
-            "camera": base.camera.model_copy(
-                update={"resolution_w": 3840, "resolution_h": 2160}
-            )
+            "camera": base.camera.model_copy(update={"resolution_w": 3840, "resolution_h": 2160})
         }
     )
     p1 = calculate(base).projection
@@ -75,7 +79,7 @@ def test_resolution_scales_pixel_projection():
     assert p2.height_px == pytest.approx(p1.height_px * 2, rel=0.01)
 
 
-def test_api_calculate_schema(httpx_client):
+def test_api_calculate_schema(asgi_client):
     body = {
         "camera": {
             "sensor_width_mm": 4.8,
@@ -88,7 +92,7 @@ def test_api_calculate_schema(httpx_client):
         },
         "object": {"object_id": "donut", "object_distance_m": 1.0},
     }
-    r = httpx_client.post("/api/calculate", json=body)
+    r = asgi_client.post("/api/calculate", json=body)
     assert r.status_code == 200
     data = r.json()
     for key in ("fov", "coverage", "density", "dori", "projection"):

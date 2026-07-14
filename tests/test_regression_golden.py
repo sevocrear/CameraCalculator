@@ -46,15 +46,11 @@ def test_golden_case(case):
     if "hfov_deg" in expected:
         assert result.fov.hfov_deg == pytest.approx(expected["hfov_deg"], rel=tol)
     if "coverage_width_m" in expected:
-        assert result.coverage.width_m == pytest.approx(
-            expected["coverage_width_m"], rel=tol
-        )
+        assert result.coverage.width_m == pytest.approx(expected["coverage_width_m"], rel=tol)
     if "ppm" in expected:
         assert result.density.ppm == pytest.approx(expected["ppm"], rel=tol)
     if "projection_width_px" in expected:
-        assert result.projection.width_px == pytest.approx(
-            expected["projection_width_px"], rel=tol
-        )
+        assert result.projection.width_px == pytest.approx(expected["projection_width_px"], rel=tol)
     if "projection_height_px" in expected:
         assert result.projection.height_px == pytest.approx(
             expected["projection_height_px"], rel=tol

@@ -1,23 +1,15 @@
 """Reference object presets for pixel visualization.
 
-Ориентации относительно камеры, смотрящей вдоль −Z (ось на центр объекта):
-  - upright: объект «лицом» к камере, высота вдоль +Y (банка, человек, корзина, пончик)
-  - top_down: объект лежит плашмя (авто как прямоугольник W×H)
-
-Смещения:
-  - model_offset_y_m / model_offset_z_m — сдвиг *физического центра* объекта (влияет на математику
-    проекции и позицию в 3D/2D). model_offset_z_m — это сдвиг по X (влево/вправо в кадре).
-  - model_mesh_offset_* — локальная поправка GLB после подгонки bbox (только визуализация,
-    не меняет width_px/height_px).
-  - model_scale_mul — множитель физ. габаритов для матана (W/H/D и bbox в px).
-  - model_visual_scale — доп. масштаб только GLB после fitToDims (не меняет width_px/height_px).
+``model_offset_x_m`` and ``model_offset_y_m`` move the physical object center
+and therefore affect projection math. ``model_mesh_offset_*`` and
+``model_visual_scale`` only align the rendered GLB silhouette.
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class ObjectOrientation(str, Enum):
+class ObjectOrientation(StrEnum):
     """How the object sits relative to the optical axis (−Z)."""
 
     UPRIGHT = "upright"
@@ -35,18 +27,18 @@ class ReferenceObject:
     depth_m: float
     cv_threshold_px: float
     orientation: ObjectOrientation = ObjectOrientation.UPRIGHT
-    # Сдвиг физического центра (метры) — участвует в pinhole-математике.
+    # Physical-center offsets used by projection math.
+    model_offset_x_m: float = 0.0
     model_offset_y_m: float = 0.0
-    model_offset_z_m: float = 0.0  # семантика: сдвиг по X (влево/вправо)
-    # Локальная поправка меша после fit/recenter (только рендер).
+    # Local mesh correction after fit/recenter (rendering only).
     model_mesh_offset_x_m: float = 0.0
     model_mesh_offset_y_m: float = 0.0
     model_mesh_offset_z_m: float = 0.0
     # Rotation to bring GLB into the project's coordinate convention (Euler, radians).
     model_rotation_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    # Масштаб физ. размеров для API/bbox (умножает width/height/depth в calculator).
+    # Physical dimension multiplier used by the API and projected bbox.
     model_scale_mul: float = 1.0
-    # Масштаб только GLB-силуэта после fit к W×H×D (визуализация; 1.0 = без доп. увеличения).
+    # Additional GLB-only scale after fitting to physical dimensions.
     model_visual_scale: float = 1.0
 
 
@@ -63,13 +55,13 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
     ),
     "cola_can": ReferenceObject(
         id="cola_can",
-        label="Банка Coca-Cola",
+        label="Банка",
         width_m=0.066,
         height_m=0.12,
         depth_m=0.066,
         cv_threshold_px=64.0,
         orientation=ObjectOrientation.UPRIGHT,
-        # GLB: центроид выше bbox-центра → визуально «сидит» на оси, bbox выше.
+        # The GLB centroid sits above the bounding-box center.
         model_mesh_offset_y_m=-0.007,
     ),
     "basket": ReferenceObject(
@@ -89,7 +81,7 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
         depth_m=0.30,
         cv_threshold_px=32.0,
         orientation=ObjectOrientation.UPRIGHT,
-        # GLB: центроид ~7 см выше геом. центра bbox.
+        # The GLB centroid sits slightly above its geometric center.
         model_mesh_offset_y_m=-0.000,
         model_mesh_offset_x_m=0.006,
     ),
@@ -104,9 +96,9 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
         model_mesh_offset_x_m=0.025,
         model_mesh_offset_y_m=0.020,
         model_scale_mul=1.0,
-        # Силуэт GLB меньше прямоугольного AABB — чуть раздуваем только меш.
+        # The silhouette occupies less than its rectangular physical AABB.
         model_visual_scale=1.45,
-        # После flatten GLB уже смотрит в −Z; π разворачивал задом.
+        # After flattening, the GLB already faces the negative Z direction.
         model_rotation_xyz=(0.0, 0.0, 0.0),
     ),
 }

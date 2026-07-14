@@ -1,191 +1,137 @@
 # CameraCalculator
 
-Веб-калькулятор CCTV-оптики: подбор матрицы, фокусного и типа оптики по FOV, покрытию, PPM/PPC/GSD, DORI (EN 62676-4) и размеру эталонного объекта в пикселях.
+CameraCalculator is a FastAPI web application for exploring CCTV lens geometry,
+field of view, scene coverage, pixel density, GSD, DORI thresholds, and the
+projected size of reference objects. The interface is currently in Russian.
 
-Поддерживаются **rectilinear (pinhole)** и **equidistant fisheye** (`r = f·θ`). UI: Three.js (3D-схема + 2D-кадр с bbox). Backend: FastAPI.
+It supports an exact ideal rectilinear pinhole model and an equidistant fisheye
+model (`r = fθ`). Results describe those ideal models; a camera datasheet's
+measured field of view must not be treated as an exact pinhole measurement.
 
-- UI: http://localhost:8088  
-- Health: http://localhost:8088/health  
-- OpenAPI: http://localhost:8088/docs  
+## Quick start
 
----
-
-## Requirements
-
-| Слой | Версия / образ  |
-|------|----------------------------------------------------------|
-| **Python** | `>=3.12` (`requires-python` в `pyproject.toml`) |
-| **Docker (хост)** | Docker `29.2.0`, Compose `v5.0.2` |
-| **Base image** | `ghcr.io/astral-sh/uv:python3.12-bookworm-slim` |
-| **Runtime image** | ~102 MB (`cctv_lens_calc-app:latest`) |
-| **Порт** | хост `8088` → контейнер `8000` |
-
-### Runtime (из `uv.lock`)
-
-| Пакет | Версия |
-|-------|--------|
-| fastapi | 0.139.0 |
-| uvicorn | 0.49.0 |
-| pydantic | 2.13.4 |
-| starlette | 1.3.1 |
-
-### Dev / тесты (extras `dev`)
-
-| Пакет | Версия |
-|-------|--------|
-| pytest | 9.1.1 |
-| httpx | 0.28.1 |
-| hypothesis | 6.156.1 |
-| playwright | 1.61.0 |
-
-Источник истины по зависимостям: [`pyproject.toml`](pyproject.toml) + [`uv.lock`](uv.lock). Не держим отдельный `requirements.txt` — ставим через **uv** или Docker.
+From this directory:
 
 ```bash
-# локально
-uv sync --all-extras
-
-# только runtime
-uv sync --frozen --no-dev
+docker compose up -d --build
+docker compose ps
 ```
 
----
+Open:
 
-## Быстрый старт (Docker)
+- UI: <http://localhost:8088>
+- health check: <http://localhost:8088/health>
+- OpenAPI UI: <http://localhost:8088/docs>
+
+Stop the stack with:
 
 ```bash
-cd tools/cctv_lens_calc
-docker compose up -d --build
-docker compose ps          # app → healthy
 docker compose down
 ```
 
-Тесты (профиль `test`, сеть shared с app):
-
-```bash
-docker compose --profile test build test
-docker compose --profile test run --rm test
-```
-
-Полный CI:
+Run the complete Docker test suite, including browser tests against the live
+application:
 
 ```bash
 ./scripts/ci.sh
 ```
 
-### Разработка без Docker
+## Local development with uv
+
+Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are required.
 
 ```bash
-uv sync --all-extras
+uv sync --frozen --all-extras
 uv run uvicorn cctv_lens_calc.api.main:app --reload --port 8000
-uv run pytest -v
-# UI-тесты (нужен живой сервер на BASE_URL, по умолчанию :8000):
-BASE_URL=http://127.0.0.1:8000 uv run pytest -v -m ui
 ```
 
----
+Run linting and the fast test suite:
 
-## Навигация по проекту
-
-```
-tools/cctv_lens_calc/
-├── README.md                 ← этот файл
-├── pyproject.toml            ← зависимости, pytest markers
-├── uv.lock                   ← pinned versions
-├── Dockerfile                ← multi-stage: builder / runtime / test
-├── docker-compose.yml        ← app (:8088) + profile test
-├── models/                   ← GLB эталонов + credits
-│   └── README.md
-├── scripts/                  ← CI-обёртки
-├── src/cctv_lens_calc/
-│   ├── api/                  ← FastAPI entry + routes
-│   ├── domain/               ← математика и пресеты
-│   └── web/static/           ← UI (HTML/CSS/JS, Three.js)
-└── tests/                    ← unit / golden / Playwright
+```bash
+uv run ruff check .
+uv run pytest -m 'not ui'
 ```
 
-| Путь | Зачем |
-|------|--------|
-| `src/.../domain/calculator.py` | Оркестратор: FOV → coverage → PPM/GSD → DORI → object px |
-| `src/.../domain/pinhole.py` | Rectilinear: FOV, coverage, object_pixels |
-| `src/.../domain/fisheye.py` | Equidistant: f_eff из HFOV, FOV, coverage, pixels |
-| `src/.../domain/dori.py` | EN 62676-4 пороги и дистанции от coverage |
-| `src/.../domain/presets.py` | Размеры матриц (optical format) + пресеты камер |
-| `src/.../domain/reference_objects.py` | Габариты объектов, offsets, `model_visual_scale` |
-| `src/.../domain/models.py` | Pydantic-контракты API |
-| `src/.../domain/projection.py` | 3D→2D точка (center_u/v) |
-| `src/.../api/main.py` | Приложение FastAPI, static `/`, `/models` |
-| `src/.../api/routes.py` | `/api/calculate`, `/api/presets/*`, `/health` |
-| `web/static/js/app.js` | UI state, API, sync слайдеров |
-| `web/static/js/scene3d.js` | 3D frustum / DORI / объекты |
-| `web/static/js/viewport2d.js` | 2D кадр resolution W×H + bbox |
-| `web/static/js/model_prep.js` | Fit GLB к W×H×D, visual scale |
-| `web/static/js/help.js` | Подсказки «?» |
-| `models/*.glb` | Меши эталонов (см. [models/README.md](models/README.md)) |
-| `tests/fixtures/golden_cases.json` | Регрессия vs эталонные цифры / JVSG |
+The UI tests need a live server. Keep the Uvicorn command above running in one
+terminal, then run:
 
----
+```bash
+uv run playwright install chromium
+BASE_URL=http://127.0.0.1:8000 uv run pytest -m ui
+```
 
-## Важные конфигурационные файлы
+## Model and metric boundaries
 
-| Файл | Что крутить |
-|------|-------------|
-| **`domain/presets.py`** | `SENSOR_PRESETS` (мм активного сенсора), `CAMERA_PRESETS`, `CV_THRESHOLDS` |
-| **`domain/reference_objects.py`** | Физические W/H/D, CV-порог px, mesh offsets, `model_visual_scale` |
-| **`web/static/index.html`** | Разметка UI; cache-bust `?v=…` для CSS/JS |
-| **`web/static/css/style.css`** | Тема, layout 100dvh, цвета DORI |
-| **`docker-compose.yml`** | Порт `8088:8000`, healthcheck, profile `test` |
-| **`Dockerfile`** | Python 3.12 + uv; targets `runtime` / `test` |
-| **`pyproject.toml`** | зависимости, `tool.pytest` |
-| **`tests/conftest.py`** | `BASE_URL` (default `http://127.0.0.1:8000`) |
+For a rectilinear lens, the calculator uses exact ideal pinhole equations:
 
-Матан не хардкодить во фронте: цифры метрик и DORI всегда с `/api/calculate`.
+```text
+FOV = 2 atan(sensor_size / (2 focal_length))
+coverage = 2 distance tan(FOV / 2)
+```
 
----
+This is a mathematical camera model, not a claim that a manufacturer's measured
+datasheet FOV exactly follows the ideal pinhole equation. Real lenses can differ
+because of distortion, active image area, focus distance, cropping, and
+manufacturer measurement methods.
+
+Fisheye projection is equidistant: image radius is proportional to ray angle,
+`r = fθ`. Forward-plane coverage is finite only when the relevant FOV is below
+180°. At 180° the edge ray is parallel to the forward plane; above 180° it points
+behind that plane. Consequently, frame-average density, GSD, and coverage-derived
+DORI results are unavailable when HFOV is 180° or greater.
+
+DORI uses the EN 62676-4 horizontal density thresholds: detection 25 px/m,
+observation 62.5 px/m, recognition 125 px/m, and identification 250 px/m.
+Density and DORI are frame-average planning values, not local guarantees for a
+distorted lens.
+
+The 2D fisheye GLB silhouette is schematic. It helps explain placement but does
+not define projected object dimensions. The bounding box returned by
+`POST /api/calculate` is authoritative.
 
 ## API
 
-| Метод | Путь | Назначение |
-|-------|------|------------|
-| GET | `/health` | liveness + checks |
-| POST | `/api/calculate` | полный расчёт |
-| GET | `/api/presets/sensors` | optical formats |
-| GET | `/api/presets/cameras` | camera presets (+ expanded) |
-| GET | `/api/presets/objects` | reference objects |
-| GET | `/api/presets/cv_thresholds` | пороги px для CV |
+The application exposes:
 
-`camera.sensor_format_id` **или** явные `sensor_width_mm` / `sensor_height_mm`.
+- `GET /health` — liveness and readiness checks
+- `POST /api/calculate` — FOV, coverage, density, DORI, and object projection
+- `GET /api/presets/sensors` — sensor presets
+- `GET /api/presets/cameras` — camera presets and expanded parameters
+- `GET /api/presets/objects` — reference objects
+- `GET /api/presets/cv_thresholds` — CV pixel thresholds
 
----
+Use either `camera.sensor_format_id` or explicit `sensor_width_mm` and
+`sensor_height_mm` values. Interactive schemas and request examples are
+available at `/docs`.
 
-## Формулы (кратко)
+## Project navigation
 
-**Rectilinear**
-- HFOV = 2·atan(sensor_w / 2f)  
-- Coverage W = 2·Z·tan(HFOV/2)  
-- PPM = resolution_w / W ··· GSD (mm/px) = 1000 / PPM  
-- px_w = object_w · res_w · f / (Z · sensor_w)
+- `src/cctv_lens_calc/domain/` — projection math, DORI, presets, and API models
+- `src/cctv_lens_calc/api/` — FastAPI application and routes
+- `src/cctv_lens_calc/web/static/` — HTML, CSS, JavaScript, and Three.js UI
+- `models/` — bundled GLB assets; see [the model map](models/README.md)
+- `tests/` — unit, property, regression, API, and Playwright tests
+- `Dockerfile` and `docker-compose.yml` — runtime and test containers
+- `scripts/ci.sh` — reproducible full-suite entry point
 
-**Equidistant fisheye**
-- θ_max = (sensor_dim/2) / f → FOV = 2·θ_max  
-- номинальный HFOV → f_eff = (sensor_w/2) / θ_max  
-- DORI от покрытия: Z = res_w / (PPM_th · W_per_m)
+Configuration lives at these exact paths:
 
-**DORI (EN 62676-4), горизонтальные пороги**  
-Detection 25 · Observation 62.5 · Recognition 125 · Identification 250 px/m
+- `src/cctv_lens_calc/domain/presets.py` — sensor and camera presets, CV thresholds
+- `src/cctv_lens_calc/domain/reference_objects.py` — physical dimensions,
+  projection offsets, and visual scale
+- `src/cctv_lens_calc/web/static/index.html` — UI structure
+- `src/cctv_lens_calc/web/static/css/style.css` — UI layout and theme
+- `tests/conftest.py` — live-server `BASE_URL` default
+- `pyproject.toml` — package, test, and Ruff configuration
+- `docker-compose.yml` — port mapping, health check, and test profile
 
-Сверка с [JVSG](https://www.jvsg.com/calculators/cctv-lens-calculator/): rectilinear расхождение **< 1%**.
+Keep metric calculations in the backend; the UI consumes `/api/calculate`.
 
-| Кейс | Параметры | Ожидание |
-|------|-----------|----------|
-| JVSG baseline | 1/3", f=4mm, Z=10m | W=12.0m, PPM=160 |
-| Close-up | 5.37mm, f=2.8, cola @ 0.45m | ~147×267 px |
-| Wide fisheye | 160°, donut @ 0.3m | HFOV=160° |
-| Mid range | f=2.8, basket @ 3m | ~134×117 px |
-| 1/4" 6mm 5m | 1280px | W=3.0m, PPM=427 |
+## Contributing and licensing
 
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
-## 3D-модели
-
-Кредиты и лицензии: [models/README.md](models/README.md).  
-Габариты для матана — только в `reference_objects.py`, не в GLB.
+CameraCalculator source code is available under the [MIT License](LICENSE).
+Bundled libraries and 3D assets retain their own terms; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
