@@ -22,6 +22,8 @@ const Viewport2D = (function () {
   let _offscreenScene = null;
   let _offscreenCamera = null;
   let _offscreenMeshRoot = null;
+  let _offscreenKeyLight = null;
+  let _offscreenFillLight = null;
   let _lastScreenBBox = null;
   let _lastApiBBox = null;
 
@@ -172,10 +174,17 @@ const Viewport2D = (function () {
     if (!_offscreenScene) {
       _offscreenScene = new THREE.Scene();
       _offscreenScene.background = null;
-      _offscreenScene.add(new THREE.AmbientLight(0xffffff, 0.75));
-      const dir = new THREE.DirectionalLight(0xffffff, 0.95);
-      dir.position.set(2, 6, 3);
-      _offscreenScene.add(dir);
+      // Яркий ambient + key за камерой (камера смотрит в −Z).
+      _offscreenScene.add(new THREE.AmbientLight(0xffffff, 0.95));
+      _offscreenScene.add(new THREE.HemisphereLight(0xffffff, 0xb0b8c0, 0.55));
+      _offscreenKeyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+      _offscreenKeyLight.position.set(0, 4, 6);
+      _offscreenKeyLight.target.position.set(0, 0, -4);
+      _offscreenScene.add(_offscreenKeyLight);
+      _offscreenScene.add(_offscreenKeyLight.target);
+      _offscreenFillLight = new THREE.DirectionalLight(0xe8f0ff, 0.45);
+      _offscreenFillLight.position.set(-2, 2, 3);
+      _offscreenScene.add(_offscreenFillLight);
       _offscreenMeshRoot = new THREE.Group();
       _offscreenScene.add(_offscreenMeshRoot);
     }
@@ -224,6 +233,17 @@ const Viewport2D = (function () {
     const world = ModelPrep.worldPoseFromProjection(proj, cameraParams.mount_height_m);
     _offscreenCamera.position.set(0, world.camY, 0);
     _offscreenCamera.lookAt(0, world.camY, -1);
+
+    // Key light: за камерой и выше — светит на сторону объекта, обращённую к объективу.
+    if (_offscreenKeyLight) {
+      const objZ = -Math.max(Number(proj.object_distance_m) || 1, 0.2);
+      _offscreenKeyLight.position.set(0, world.camY + 2.5, 4);
+      _offscreenKeyLight.target.position.set(0, world.camY, objZ);
+      _offscreenKeyLight.target.updateMatrixWorld();
+    }
+    if (_offscreenFillLight) {
+      _offscreenFillLight.position.set(-2.5, world.camY + 1.0, 2.5);
+    }
 
     const dims = {
       width_m: proj.object_width_m,

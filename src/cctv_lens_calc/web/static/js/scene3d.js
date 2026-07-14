@@ -60,12 +60,16 @@ const Scene3D = (function () {
       controls.target.set(0, 1.5, -1);
     }
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.85);
-    dir.position.set(4, 8, 6);
+    // Свет за CCTV-камерой (камера в начале координат смотрит в −Z): key сверху сзади + fill.
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xa8b0b8, 0.45));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.15);
+    dir.position.set(0, 10, 8);
+    dir.target.position.set(0, 1.5, -6);
     scene.add(dir);
-    const fill = new THREE.DirectionalLight(0x88aaff, 0.35);
-    fill.position.set(-3, 2, -2);
+    scene.add(dir.target);
+    const fill = new THREE.DirectionalLight(0xe8f0ff, 0.4);
+    fill.position.set(-4, 4, 3);
     scene.add(fill);
 
     // Масштаб сетки: 1 клетка = 3 метра (как ты считаешь на скрине).
