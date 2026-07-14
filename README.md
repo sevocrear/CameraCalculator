@@ -1,5 +1,7 @@
 # CameraCalculator
 
+![CameraCalculator UI](docs/ui-screenshot.png)
+
 CameraCalculator is a FastAPI web application for exploring CCTV lens geometry,
 field of view, scene coverage, pixel density, GSD, DORI thresholds, and the
 projected size of reference objects. The interface is currently in Russian.
