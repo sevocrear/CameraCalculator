@@ -70,15 +70,22 @@ const ModelPrep = (function () {
     const size = box.getSize(new THREE.Vector3());
     const width = Math.max(size.x, 1e-6);
     const height = Math.max(size.y, 1e-6);
+    const depth = Math.max(size.z, 1e-6);
 
-    let s = 1.0;
+    let sx;
+    let sy;
+    let sz;
     if (orientation === 'top_down') {
-      s = Math.min(dims.width_m / width, dims.height_m / height);
+      const s = Math.min(dims.width_m / width, dims.height_m / height);
+      sx = sy = sz = s;
     } else {
-      s = dims.height_m / height;
+      // Upright, камера смотрит вдоль −Z: в кадре видны extent по X и Y.
+      sx = dims.width_m / width;
+      sy = dims.height_m / height;
+      sz = (dims.depth_m || dims.width_m) / depth;
     }
 
-    const scaleMatrix = new THREE.Matrix4().makeScale(s, s, s);
+    const scaleMatrix = new THREE.Matrix4().makeScale(sx, sy, sz);
     model.traverse((node) => {
       if (node.isMesh && node.geometry) {
         node.geometry.applyMatrix4(scaleMatrix);
@@ -89,11 +96,12 @@ const ModelPrep = (function () {
 
   function prepareTemplate(cloneRoot, dims, orientation, preset) {
     const model = flattenHierarchy(cloneRoot);
-    fitToDims(model, dims, orientation);
     const rot = preset && preset.model_rotation_xyz;
     if (Array.isArray(rot) && rot.length === 3) {
       model.rotation.set(rot[0], rot[1], rot[2]);
+      model.updateMatrixWorld(true);
     }
+    fitToDims(model, dims, orientation);
     return model;
   }
 

@@ -82,8 +82,9 @@
   {
     "name": "1/4 inch 6mm 5m PPM",
     "camera": {
-      "sensor_width_mm": 3.2,
-      "sensor_height_mm": 2.4,
+      "sensor_format_id": "1_4_inch",
+      "sensor_width_mm": 3.6,
+      "sensor_height_mm": 2.7,
       "resolution_w": 1280,
       "resolution_h": 720,
       "focal_length_mm": 6.0,
@@ -94,8 +95,8 @@
     },
     "object": { "object_id": "person", "object_distance_m": 5.0 },
     "expected": {
-      "coverage_width_m": 2.667,
-      "ppm": 480.0,
+      "coverage_width_m": 3.0,
+      "ppm": 426.67,
       "tolerance_pct": 1.0
     }
   },

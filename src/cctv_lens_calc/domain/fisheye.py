@@ -29,12 +29,17 @@ def fov_deg(sensor_dim_mm: float, focal_length_mm: float) -> float:
 
 
 def coverage_m(hfov_deg: float, distance_m: float) -> float:
-    """Approximate scene width at distance Z using rectilinear tangent.
+    """Scene width at distance Z for equidistant fisheye edge ray.
 
-    For fisheye wide angles, use pinhole approximation on axis for coverage
-    footprint (consistent with JVSG-style calculators for planning).
+    Ray at image edge has angle theta_max = HFOV/2 from optical axis;
+    lateral offset on plane at Z is Z * tan(theta_max). Capped for theta → 90°
+    and for ultra-wide FOV in UI metrics.
     """
-    return pinhole.coverage_m(hfov_deg, distance_m)
+    theta_max_rad = math.radians(min(hfov_deg / 2.0, pinhole._MAX_HALF_FOV_DEG))
+    raw = 2.0 * distance_m * math.tan(theta_max_rad)
+    if hfov_deg >= 150.0:
+        return min(raw, 2.0 * distance_m)
+    return raw
 
 
 def object_pixels(

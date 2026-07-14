@@ -138,6 +138,22 @@ const Scene3D = (function () {
     if (renderer && scene && viewCamera) renderer.render(scene, viewCamera);
   }
 
+  function _safeTanHalfFov(fovDeg) {
+    const halfDeg = Math.min(fovDeg / 2.0, 89.95);
+    return Math.tan((halfDeg * Math.PI) / 180.0);
+  }
+
+  /** Cap frustum only near fisheye / ultra-wide (half-FOV ≥ 75°), not normal wide lenses. */
+  function _vizHalfWidth(hfovDeg, planeZ, objectZ) {
+    const halfDeg = Math.min(hfovDeg / 2.0, 89.95);
+    const raw = planeZ * Math.tan((halfDeg * Math.PI) / 180.0);
+    if (halfDeg >= 75.0) {
+      const cap = Math.max(objectZ * 5, planeZ * 0.9, 2.0);
+      return Math.min(raw, cap);
+    }
+    return raw;
+  }
+
   function clearGroup(group) {
     while (group.children.length) {
       const c = group.children[0];
@@ -362,8 +378,13 @@ const Scene3D = (function () {
     }
 
     const z = Math.max(result.coverage.distance_m, 0.05);
-    const halfW = result.coverage.width_m / 2;
-    const halfH = result.coverage.height_m / 2;
+    const objZ =
+      result && result.projection && result.projection.object_distance_m
+        ? Math.max(result.projection.object_distance_m, 0.05)
+        : Math.max(Number(objectDistance) || z, 0.05);
+    const halfW = _vizHalfWidth(result.fov.hfov_deg, z, objZ);
+    const vfovRad = (result.fov.vfov_deg * Math.PI) / 180;
+    const halfH = Math.min(z * Math.tan(vfovRad / 2), halfW * 0.75);
 
     // Вершина frustum = позиция камеры (НЕ пол!)
     const apex = new THREE.Vector3(0, camY, 0);
@@ -380,19 +401,25 @@ const Scene3D = (function () {
     const frustumColor = lensType === 'fisheye_equidistant' ? 0xd29922 : 0x58a6ff;
     addFrustum(apex, corners, frustumColor, 0.12);
 
-    lastGeometry = { camY, apexY: apex.y, objectY: camY };
+    lastGeometry = {
+      camY,
+      apexY: apex.y,
+      objectY: camY,
+      halfW,
+      hfovDeg: result.fov.hfov_deg,
+      planeZ: z,
+    };
 
     // DORI в top-view: клин (трапеция) на полу от камеры до дистанции dist.
     // Это именно «плановый след» HFOV, а не пересечение лучей с полом.
     const doriColors = [0x58a6ff, 0x3fb950, 0xd29922, 0xf85149];
     const doriKeys = ['detection_m', 'observation_m', 'recognition_m', 'identification_m'];
-    const hfovRad = (result.fov.hfov_deg * Math.PI) / 180;
     let doriCount = 0;
 
     doriKeys.forEach((key, i) => {
       const dist = result.dori[key];
       if (!dist || dist <= 0) return;
-      const rw = dist * Math.tan(hfovRad / 2);
+      const rw = _vizHalfWidth(result.fov.hfov_deg, dist, dist);
       const y = 0.02 + i * 0.002; // небольшой z-fighting offset
 
       // вершина у камеры (на проекции на пол), основание на z=-dist
@@ -425,10 +452,7 @@ const Scene3D = (function () {
 
     // Объект — с редактируемым сдвигом по X/Y относительно камеры
     if (objectDims) {
-      const oz =
-        result && result.projection && result.projection.object_distance_m
-          ? Math.max(result.projection.object_distance_m, 0.05)
-          : Math.max(Number(objectDistance) || z, 0.05);
+      const oz = objZ;
       const id = objectId || 'cola_can';
 
       _addPhysicalBBox(xOff, camY, yOff, oz, objectDims);
@@ -553,5 +577,18 @@ const Scene3D = (function () {
     return lastGeometry;
   }
 
-  return { init, update, hasWebGL, getLastGeometry, getDebugObjectState };
+  function getFrustumState() {
+    if (!lastGeometry) return null;
+    return {
+      camY: lastGeometry.camY,
+      apexY: lastGeometry.apexY,
+      objectY: lastGeometry.objectY,
+      doriCount: lastGeometry.doriCount || 0,
+      halfW: lastGeometry.halfW,
+      hfovDeg: lastGeometry.hfovDeg,
+      planeZ: lastGeometry.planeZ,
+    };
+  }
+
+  return { init, update, hasWebGL, getLastGeometry, getDebugObjectState, getFrustumState };
 })();

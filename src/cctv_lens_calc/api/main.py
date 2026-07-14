@@ -1,4 +1,4 @@
-"""FastAPI application for CCTV lens calculator."""
+"""FastAPI application for CameraCalculator."""
 
 from pathlib import Path
 
@@ -15,7 +15,7 @@ MODELS_DIR = Path("/app/models") if Path("/app/models").is_dir() else Path(__fil
 def create_app() -> FastAPI:
     """Build and configure FastAPI application."""
     app = FastAPI(
-        title="CCTV Lens Calculator",
+        title="CameraCalculator",
         version=__version__,
         description="Camera FOV, pixel density, and object projection calculator",
     )

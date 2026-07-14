@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LensType(str, Enum):
@@ -15,8 +15,16 @@ class LensType(str, Enum):
 class CameraParams(BaseModel):
     """Camera and mount parameters."""
 
-    sensor_width_mm: float = Field(gt=0, description="Sensor width in mm")
-    sensor_height_mm: float = Field(gt=0, description="Sensor height in mm")
+    sensor_format_id: str | None = Field(
+        default=None,
+        description="Optical format preset id (e.g. 1_2_8_inch); resolves WxH in mm",
+    )
+    sensor_width_mm: float | None = Field(
+        default=None, gt=0, description="Sensor width in mm (optional if format_id set)"
+    )
+    sensor_height_mm: float | None = Field(
+        default=None, gt=0, description="Sensor height in mm (optional if format_id set)"
+    )
     resolution_w: int = Field(gt=0, description="Horizontal resolution in px")
     resolution_h: int = Field(gt=0, description="Vertical resolution in px")
     focal_length_mm: float = Field(gt=0, description="Focal length in mm")
@@ -29,6 +37,24 @@ class CameraParams(BaseModel):
     )
     distance_m: float = Field(default=1.0, ge=0.01, le=100.0)
     mount_height_m: float = Field(default=2.5, ge=0.0, le=20.0)
+
+    @model_validator(mode="after")
+    def resolve_sensor_dimensions(self) -> "CameraParams":
+        """Resolve sensor WxH from optical format preset or require explicit mm."""
+        if self.sensor_format_id:
+            from cctv_lens_calc.domain.presets import get_sensor
+
+            sensor = get_sensor(self.sensor_format_id)
+            if sensor is None:
+                raise ValueError(f"Unknown sensor_format_id: {self.sensor_format_id}")
+            object.__setattr__(self, "sensor_width_mm", sensor.width_mm)
+            object.__setattr__(self, "sensor_height_mm", sensor.height_mm)
+        elif self.sensor_width_mm is None or self.sensor_height_mm is None:
+            raise ValueError(
+                "Either sensor_format_id or both sensor_width_mm and sensor_height_mm "
+                "are required"
+            )
+        return self
 
 
 class ObjectParams(BaseModel):

@@ -3,6 +3,7 @@
 (function () {
   const DEBOUNCE_MS = 50;
   let cameras = [];
+  let sensors = [];
   let objects = [];
   let cvThresholds = {};
   let selectedObjectId = 'cola_can';
@@ -11,11 +12,30 @@
 
   const $ = (id) => document.getElementById(id);
 
+  function getSelectedSensor() {
+    const id = $('sensorFormat').value;
+    return sensors.find((s) => s.id === id) || null;
+  }
+
+  function updateSensorDimsLabel() {
+    const s = getSelectedSensor();
+    const el = $('sensorDimsMm');
+    if (!el) return;
+    if (!s) {
+      el.textContent = '—';
+      return;
+    }
+    el.textContent = `${s.width_mm} × ${s.height_mm} mm`;
+  }
+
   function readParams() {
+    const sensorId = $('sensorFormat').value;
+    const sensor = getSelectedSensor();
     return {
       camera: {
-        sensor_width_mm: parseFloat($('sensorW').value),
-        sensor_height_mm: parseFloat($('sensorH').value),
+        sensor_format_id: sensorId,
+        sensor_width_mm: sensor ? sensor.width_mm : undefined,
+        sensor_height_mm: sensor ? sensor.height_mm : undefined,
         resolution_w: parseInt($('resW').value, 10),
         resolution_h: parseInt($('resH').value, 10),
         focal_length_mm: parseFloat($('focal').value),
@@ -120,13 +140,14 @@
     const cam = cameras.find((c) => c.id === presetId);
     if (!cam || !cam.expanded) return;
     const e = cam.expanded;
-    $('sensorW').value = e.sensor_width_mm;
-    $('sensorH').value = e.sensor_height_mm;
+    if (e.sensor_format_id) $('sensorFormat').value = e.sensor_format_id;
+    updateSensorDimsLabel();
     $('resW').value = e.resolution_w;
     $('resH').value = e.resolution_h;
     $('focal').value = e.focal_length_mm;
     $('lensType').value = e.lens_type;
     if (e.fisheye_fov_deg) $('fisheyeFov').value = e.fisheye_fov_deg;
+    Viewport2D.setResolution(e.resolution_w, e.resolution_h);
   }
 
   function buildObjectTabs() {
@@ -148,10 +169,46 @@
     });
   }
 
+  function buildSensorSelect() {
+    const sel = $('sensorFormat');
+    sel.innerHTML = '';
+    sensors.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.label;
+      sel.appendChild(opt);
+    });
+    if (sensors.length > 0) {
+      const defaultId = sensors.find((s) => s.id === '1_2_8_inch')
+        ? '1_2_8_inch'
+        : sensors[0].id;
+      sel.value = defaultId;
+    }
+    updateSensorDimsLabel();
+  }
+
   function bindInputs() {
-    ['sensorW', 'sensorH', 'resW', 'resH', 'focal', 'lensType', 'fisheyeFov', 'mountHeight'].forEach(
-      (id) => $(id).addEventListener('input', scheduleRecalc)
+    ['resW', 'resH', 'focal', 'fisheyeFov', 'mountHeight'].forEach((id) =>
+      $(id).addEventListener('input', scheduleRecalc)
     );
+    // <select> в браузере шлёт change, не input — иначе FOV/frustum не пересчитываются.
+    $('sensorFormat').addEventListener('change', () => {
+      updateSensorDimsLabel();
+      scheduleRecalc();
+    });
+    $('lensType').addEventListener('change', scheduleRecalc);
+    $('resW').addEventListener('input', () => {
+      Viewport2D.setResolution(
+        parseInt($('resW').value, 10),
+        parseInt($('resH').value, 10)
+      );
+    });
+    $('resH').addEventListener('input', () => {
+      Viewport2D.setResolution(
+        parseInt($('resW').value, 10),
+        parseInt($('resH').value, 10)
+      );
+    });
     $('distance').addEventListener('input', () => {
       $('distanceVal').textContent = $('distance').value;
       scheduleRecalc();
@@ -181,12 +238,14 @@
   }
 
   async function init() {
-    const [camRes, objRes, cvRes] = await Promise.all([
+    const [camRes, sensorRes, objRes, cvRes] = await Promise.all([
       fetch('/api/presets/cameras'),
+      fetch('/api/presets/sensors'),
       fetch('/api/presets/objects'),
       fetch('/api/presets/cv_thresholds'),
     ]);
     cameras = await camRes.json();
+    sensors = await sensorRes.json();
     objects = await objRes.json();
     cvThresholds = await cvRes.json();
 
@@ -198,6 +257,7 @@
       sel.appendChild(opt);
     });
 
+    buildSensorSelect();
     parseUrlState();
     applyCameraPreset($('cameraPreset').value);
     buildObjectTabs();
@@ -215,5 +275,7 @@
     fetchCalculate,
     getLastResult: () => lastResult,
     getMetricPpm: () => ($('metricPpm') ? $('metricPpm').textContent : null),
+    getSensors: () => sensors,
+    getSelectedSensor,
   };
 })();

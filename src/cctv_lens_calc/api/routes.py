@@ -56,6 +56,8 @@ def presets_sensors() -> list[dict]:
             "label": s.label,
             "width_mm": s.width_mm,
             "height_mm": s.height_mm,
+            "diagonal_mm": s.diagonal_mm,
+            "aspect": s.aspect,
         }
         for s in SENSOR_PRESETS.values()
     ]

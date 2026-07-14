@@ -2,6 +2,15 @@
 
 import math
 
+# tan(90°) ломает coverage/frustum — для визуализации и PPM cap на 89.95°.
+_MAX_HALF_FOV_DEG = 89.95
+
+
+def safe_tan_half_fov(fov_deg_val: float) -> float:
+    """tan(FOV/2) with cap so wide-angle math stays finite."""
+    half_deg = min(fov_deg_val / 2.0, _MAX_HALF_FOV_DEG)
+    return math.tan(math.radians(half_deg))
+
 
 def fov_deg(sensor_dim_mm: float, focal_length_mm: float) -> float:
     """Field of view angle in degrees for one sensor dimension.
@@ -26,8 +35,7 @@ def coverage_m(fov_deg_val: float, distance_m: float) -> float:
     Returns:
         Coverage dimension in meters: 2 * Z * tan(FOV/2).
     """
-    half_rad = math.radians(fov_deg_val / 2.0)
-    return 2.0 * distance_m * math.tan(half_rad)
+    return 2.0 * distance_m * safe_tan_half_fov(fov_deg_val)
 
 
 def ppm_at_distance(

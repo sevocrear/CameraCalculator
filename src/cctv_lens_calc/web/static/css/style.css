@@ -11,6 +11,15 @@ header h1 { margin: 0; font-size: 1.4rem; }
 .subtitle { margin: 0.25rem 0 0; color: #8b949e; font-size: 0.9rem; }
 .controls { padding: 1rem 1.5rem; background: #161b22; border-bottom: 1px solid #30363d; }
 .row { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem; align-items: center; }
+.sensor-dims-mm {
+  font-size: 0.85rem;
+  color: #c9d1d9;
+  padding: 0.35rem 0.5rem;
+  background: #21262d;
+  border-radius: 4px;
+  align-self: flex-end;
+  margin-bottom: 0.1rem;
+}
 label, dt.has-tip, p.has-tip {
   display: flex;
   flex-direction: column;

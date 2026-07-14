@@ -1,4 +1,4 @@
-# CCTV Lens Calculator
+# CameraCalculator
 
 Подбор камеры для проекта «Прозрачный магазин»: FOV, PPM/PPC, DORI-зоны, пиксели на эталонном объекте. Rectilinear + equidistant fisheye.
 
@@ -47,7 +47,7 @@ uv run pytest -v
 | Касса | sensor 5.37mm, f=2.8, cola @ 0.45m | ~147×267 px |
 | Полка fisheye | 160°, donut @ 0.3m | HFOV=160° |
 | Стеллаж | f=2.8, basket @ 3m | ~134×117 px |
-| 1/4" 6mm 5m | 1280px | W=2.67m, PPM=480 |
+| 1/4" 6mm 5m | 1280px | W=3.0m, PPM=427 |
 
 Расхождение с JVSG на rectilinear: **< 1%**.
 
@@ -60,7 +60,7 @@ uv run pytest -v
 ## API
 
 - `GET /health`
-- `POST /api/calculate`
+- `POST /api/calculate` — `camera.sensor_format_id` (optical format) или `sensor_width_mm` / `sensor_height_mm`
 - `GET /api/presets/{sensors,cameras,objects,cv_thresholds}`
 
 ## Формулы

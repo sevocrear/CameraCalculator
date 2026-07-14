@@ -7,29 +7,62 @@ DORI_RECOGNITION_PPM = 125.0
 DORI_IDENTIFICATION_PPM = 250.0
 
 
+def distance_for_coverage_ppm(
+    required_ppm: float,
+    resolution_w: int,
+    coverage_width_per_m: float,
+) -> float:
+    """Distance Z where frame-average horizontal PPM equals the threshold.
+
+    PPM(Z) = resolution_w / W(Z). For models where W grows linearly with Z
+    (pinhole and equidistant fisheye coverage at the scene plane):
+    W(Z) = coverage_width_per_m * Z, hence Z = res_w / (PPM * coverage_width_per_m).
+
+    Args:
+        required_ppm: Target pixels per meter (horizontal, averaged over frame width).
+        resolution_w: Horizontal resolution in pixels.
+        coverage_width_per_m: Scene width in meters at Z = 1 m (from geometry module).
+
+    Returns:
+        Distance in meters.
+    """
+    if coverage_width_per_m <= 0:
+        return float("inf")
+    return resolution_w / (required_ppm * coverage_width_per_m)
+
+
 def distance_for_ppm(
     required_ppm: float,
     resolution_w: int,
     sensor_width_mm: float,
     focal_length_mm: float,
 ) -> float:
-    """Distance at which horizontal PPM equals required threshold.
+    """Pinhole-only DORI distance (JVSG: W = Z * sensor_w / f).
 
-    From PPM = res_w / W and W = 2*Z*tan(HFOV/2), HFOV = 2*atan(sensor_w/2f):
-    W = Z * sensor_w / f  (small-angle / JVSG simplified formula)
-    PPM = res_w * f / (Z * sensor_w)
-    Z = res_w * f / (PPM * sensor_w)
-
-    Args:
-        required_ppm: Target pixels per meter.
-        resolution_w: Horizontal resolution.
-        sensor_width_mm: Sensor width in mm.
-        focal_length_mm: Focal length in mm.
-
-    Returns:
-        Distance in meters.
+    Prefer ``distance_for_coverage_ppm`` when HFOV/coverage caps are known.
     """
     return (resolution_w * focal_length_mm) / (required_ppm * sensor_width_mm)
+
+
+def dori_distances_from_coverage(
+    resolution_w: int,
+    coverage_width_per_m: float,
+) -> dict[str, float]:
+    """Compute DORI zone distances from horizontal coverage slope W/Z."""
+    return {
+        "detection_m": distance_for_coverage_ppm(
+            DORI_DETECTION_PPM, resolution_w, coverage_width_per_m
+        ),
+        "observation_m": distance_for_coverage_ppm(
+            DORI_OBSERVATION_PPM, resolution_w, coverage_width_per_m
+        ),
+        "recognition_m": distance_for_coverage_ppm(
+            DORI_RECOGNITION_PPM, resolution_w, coverage_width_per_m
+        ),
+        "identification_m": distance_for_coverage_ppm(
+            DORI_IDENTIFICATION_PPM, resolution_w, coverage_width_per_m
+        ),
+    }
 
 
 def dori_distances(
@@ -37,18 +70,6 @@ def dori_distances(
     sensor_width_mm: float,
     focal_length_mm: float,
 ) -> dict[str, float]:
-    """Compute DORI zone distances in meters."""
-    return {
-        "detection_m": distance_for_ppm(
-            DORI_DETECTION_PPM, resolution_w, sensor_width_mm, focal_length_mm
-        ),
-        "observation_m": distance_for_ppm(
-            DORI_OBSERVATION_PPM, resolution_w, sensor_width_mm, focal_length_mm
-        ),
-        "recognition_m": distance_for_ppm(
-            DORI_RECOGNITION_PPM, resolution_w, sensor_width_mm, focal_length_mm
-        ),
-        "identification_m": distance_for_ppm(
-            DORI_IDENTIFICATION_PPM, resolution_w, sensor_width_mm, focal_length_mm
-        ),
-    }
+    """Compute DORI zone distances for rectilinear (pinhole) optics."""
+    coverage_per_m = sensor_width_mm / focal_length_mm
+    return dori_distances_from_coverage(resolution_w, coverage_per_m)

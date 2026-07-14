@@ -1,7 +1,7 @@
 [project]
 name = "cctv-lens-calc"
 version = "0.1.0"
-description = "CCTV lens calculator for camera selection (pinhole + fisheye)"
+description = "CameraCalculator — FOV, PPM and object projection for camera selection"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

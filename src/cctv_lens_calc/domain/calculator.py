@@ -3,6 +3,7 @@
 import math
 
 from cctv_lens_calc.domain import dori, fisheye, pinhole
+from cctv_lens_calc.domain import projection as proj_math
 from cctv_lens_calc.domain.models import (
     CalculateRequest,
     CalculateResponse,
@@ -55,19 +56,16 @@ def calculate(request: CalculateRequest) -> CalculateResponse:
     dfov = geom.fov_deg(sensor_diag, f_mm)
 
     cov_w = geom.coverage_m(hfov, cam.distance_m)
-    cov_h = pinhole.coverage_m(vfov, cam.distance_m)
+    cov_h = geom.coverage_m(vfov, cam.distance_m)
 
     ppm = cam.resolution_w / cov_w
     ppc = ppm / 100.0
-    gsd = pinhole.gsd_mm_per_px(
-        cam.distance_m,
-        cam.sensor_width_mm,
-        f_mm,
-        cam.resolution_w,
-    )
+    # GSD at distance_m must match displayed PPM: mm on scene per px = 1000 / PPM.
+    gsd = 1000.0 / ppm
 
-    dori_raw = dori.dori_distances(
-        cam.resolution_w, cam.sensor_width_mm, f_mm
+    coverage_per_m = geom.coverage_m(hfov, 1.0)
+    dori_raw = dori.dori_distances_from_coverage(
+        cam.resolution_w, coverage_per_m
     )
 
     projection = None
@@ -125,11 +123,17 @@ def calculate(request: CalculateRequest) -> CalculateResponse:
         )
         min_side = min(px_w, px_h)
         aspect = px_w / px_h if px_h > 0 else 0.0
-        # Camera intrinsics for projecting object center (X=0, Y=obj_y_off).
-        fx = (f_mm / cam.sensor_width_mm) * cam.resolution_w
-        fy = (f_mm / cam.sensor_height_mm) * cam.resolution_h
-        center_u = cam.resolution_w / 2.0 + (fx * obj_x_off) / obj_z
-        center_v = cam.resolution_h / 2.0 - (fy * obj_y_off) / obj_z
+        center_u, center_v = proj_math.project_point_px(
+            obj_x_off,
+            obj_y_off,
+            obj_z,
+            sensor_width_mm=cam.sensor_width_mm,
+            sensor_height_mm=cam.sensor_height_mm,
+            focal_length_mm=f_mm,
+            resolution_w=cam.resolution_w,
+            resolution_h=cam.resolution_h,
+            lens_type=cam.lens_type,
+        )
         projection = PixelProjection(
             object_id=obj_req.object_id,
             label=label,

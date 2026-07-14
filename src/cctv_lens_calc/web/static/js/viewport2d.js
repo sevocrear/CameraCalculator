@@ -22,9 +22,88 @@ const Viewport2D = (function () {
   let _offscreenScene = null;
   let _offscreenCamera = null;
   let _offscreenMeshRoot = null;
-  let _lastArgs = null;
-  let _sensorW = 0;
-  let _sensorH = 0;
+  let _lastScreenBBox = null;
+  let _lastApiBBox = null;
+
+  function _projectWorldToScreen(camera, point, W, H) {
+    const ndc = point.clone().project(camera);
+    return {
+      u: (ndc.x * 0.5 + 0.5) * W,
+      v: (-ndc.y * 0.5 + 0.5) * H,
+    };
+  }
+
+  /** Pinhole screen AABB of physical object box (same camera as offscreen render). */
+  function _screenBBoxFromPhysicalBox(camera, world, dims, W, H) {
+    const hw = dims.width_m / 2.0;
+    const hh = dims.height_m / 2.0;
+    const hd = (dims.depth_m || dims.width_m) / 2.0;
+    const cx = world.x;
+    const cy = world.y;
+    const cz = world.z;
+    let minU = Infinity;
+    let maxU = -Infinity;
+    let minV = Infinity;
+    let maxV = -Infinity;
+
+    for (const dx of [-1, 1]) {
+      for (const dy of [-1, 1]) {
+        for (const dz of [-1, 1]) {
+          const p = new THREE.Vector3(cx + dx * hw, cy + dy * hh, cz + dz * hd);
+          const { u, v } = _projectWorldToScreen(camera, p, W, H);
+          minU = Math.min(minU, u);
+          maxU = Math.max(maxU, u);
+          minV = Math.min(minV, v);
+          maxV = Math.max(maxV, v);
+        }
+      }
+    }
+    return {
+      left: minU,
+      top: minV,
+      right: maxU,
+      bottom: maxV,
+      width: maxU - minU,
+      height: maxV - minV,
+      center_u: (minU + maxU) / 2.0,
+      center_v: (minV + maxV) / 2.0,
+    };
+  }
+
+  function _screenBBoxFromMesh(camera, meshRoot, W, H) {
+    const box = new THREE.Box3().setFromObject(meshRoot);
+    const corners = [
+      new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+      new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+      new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+      new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+      new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+      new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+      new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+      new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+    ];
+    let minU = Infinity;
+    let maxU = -Infinity;
+    let minV = Infinity;
+    let maxV = -Infinity;
+    corners.forEach((p) => {
+      const { u, v } = _projectWorldToScreen(camera, p, W, H);
+      minU = Math.min(minU, u);
+      maxU = Math.max(maxU, u);
+      minV = Math.min(minV, v);
+      maxV = Math.max(maxV, v);
+    });
+    return {
+      left: minU,
+      top: minV,
+      right: maxU,
+      bottom: maxV,
+      width: maxU - minU,
+      height: maxV - minV,
+      center_u: (minU + maxU) / 2.0,
+      center_v: (minV + maxV) / 2.0,
+    };
+  }
 
   function _resetOffscreen() {
     if (_offscreenRenderer) {
@@ -36,16 +115,22 @@ const Viewport2D = (function () {
     _offscreenCamera = null;
     _offscreenMeshRoot = null;
     _lastArgs = null;
+    _lastScreenBBox = null;
+    _lastApiBBox = null;
   }
+
+  let _lastArgs = null;
+  let _resW = 0;
+  let _resH = 0;
 
   function setResolution(width, height) {
     const c = canvas();
     if (!c) return;
     const w = Math.max(1, Math.round(width));
     const h = Math.max(1, Math.round(height));
-    if (w !== _sensorW || h !== _sensorH) {
-      _sensorW = w;
-      _sensorH = h;
+    if (w !== _resW || h !== _resH) {
+      _resW = w;
+      _resH = h;
       c.width = w;
       c.height = h;
       _resetOffscreen();
@@ -67,7 +152,8 @@ const Viewport2D = (function () {
       cameraParams.fisheye_fov_deg
     ) {
       const thetaMaxRad = _degToRad(cameraParams.fisheye_fov_deg / 2.0);
-      return (cameraParams.sensor_width_mm / 2.0) / Math.max(Math.tan(thetaMaxRad), 1e-9);
+      // Equidistant: f = (sensor/2) / theta_max — НЕ tan(theta).
+      return (cameraParams.sensor_width_mm / 2.0) / Math.max(thetaMaxRad, 1e-9);
     }
     return cameraParams.focal_length_mm;
   }
@@ -155,8 +241,22 @@ const Viewport2D = (function () {
       if (!prepared || !_offscreenMeshRoot) return;
       _offscreenMeshRoot.clear();
       const w = ModelPrep.worldPoseFromProjection(proj, cameraParams.mount_height_m);
-      _offscreenMeshRoot.add(ModelPrep.placeInstance(prepared, w, objectPreset));
+      const instance = ModelPrep.placeInstance(prepared, w, objectPreset);
+      _offscreenMeshRoot.add(instance);
       _offscreenRenderer.render(_offscreenScene, _offscreenCamera);
+
+      const dims = {
+        width_m: proj.object_width_m,
+        height_m: proj.object_height_m,
+        depth_m: proj.object_depth_m || proj.object_width_m,
+      };
+      _lastScreenBBox = _screenBBoxFromMesh(_offscreenCamera, instance, W, H);
+      const phys = _screenBBoxFromPhysicalBox(_offscreenCamera, w, dims, W, H);
+      // Для pinhole-рендера физический AABB — эталон совпадения с API.
+      if (!cameraParams || cameraParams.lens_type !== 'fisheye_equidistant') {
+        _lastScreenBBox = phys;
+      }
+
       ctx.drawImage(_offscreenCanvas, 0, 0, W, H);
     };
 
@@ -239,6 +339,8 @@ const Viewport2D = (function () {
     const by = cy2d - ph / 2;
     const pass = Math.min(pw, ph) >= cvThreshold;
 
+    _lastApiBBox = { left: bx, top: by, width: pw, height: ph, center_u: cx2d, center_v: cy2d };
+
     if (cameraParams && proj.object_width_m && proj.object_height_m) {
       _renderObjectSnapshot(ctx, objectId || proj.object_id, cameraParams, proj, objectPreset);
     }
@@ -280,5 +382,25 @@ const Viewport2D = (function () {
     return true;
   }
 
-  return { draw, isBlank, canvas, setResolution };
+  return {
+    draw,
+    isBlank,
+    canvas,
+    setResolution,
+    getResolution: () => ({ width: _resW, height: _resH }),
+    getLastScreenBBox: () => _lastScreenBBox,
+    getLastApiBBox: () => _lastApiBBox,
+    getBBoxAlignment: () => {
+      if (!_lastScreenBBox || !_lastApiBBox) return null;
+      const sw = _lastScreenBBox.width;
+      const sh = _lastScreenBBox.height;
+      const aw = _lastApiBBox.width;
+      const ah = _lastApiBBox.height;
+      const wRatio = sw > 0 ? aw / sw : 0;
+      const hRatio = sh > 0 ? ah / sh : 0;
+      const cu = Math.abs(_lastScreenBBox.center_u - _lastApiBBox.center_u);
+      const cv = Math.abs(_lastScreenBBox.center_v - _lastApiBBox.center_v);
+      return { wRatio, hRatio, centerDeltaU: cu, centerDeltaV: cv };
+    },
+  };
 })();

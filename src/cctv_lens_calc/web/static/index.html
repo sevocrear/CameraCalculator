@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CCTV Lens Calculator</title>
+  <title>CameraCalculator</title>
   <link rel="stylesheet" href="/static/css/style.css">
   <script src="/static/js/three.min.js"></script>
   <script src="/static/js/OrbitControls.js"></script>
@@ -12,7 +12,7 @@
 <body>
   <div id="app">
     <header>
-      <h1>CCTV Lens Calculator</h1>
+      <h1>CameraCalculator</h1>
       <p class="subtitle">Подбор камеры: FOV, PPM, пиксели на объекте</p>
     </header>
 
@@ -28,12 +28,14 @@
           </select>
         </label>
         <label data-help="fisheyeFov">Fisheye FOV (°)
-          <input type="number" id="fisheyeFov" min="90" max="220" step="1" value="160">
+          <input type="number" id="fisheyeFov" min="15" max="220" step="1" value="160">
         </label>
       </div>
       <div class="row">
-        <label data-help="sensorW">Sensor W (mm) <input type="number" id="sensorW" step="0.01" value="5.37"></label>
-        <label data-help="sensorH">Sensor H (mm) <input type="number" id="sensorH" step="0.01" value="3.02"></label>
+        <label data-help="sensorFormat">Размер матрицы
+          <select id="sensorFormat"></select>
+        </label>
+        <span id="sensorDimsMm" class="sensor-dims-mm" data-help="sensorDimsMm">—</span>
         <label data-help="resW">Resolution W <input type="number" id="resW" step="1" value="1920"></label>
         <label data-help="resH">Resolution H <input type="number" id="resH" step="1" value="1080"></label>
         <label data-help="focal">Focal (mm) <input type="number" id="focal" step="0.1" value="2.8"></label>
@@ -91,10 +93,10 @@
     </main>
   </div>
 
-  <script src="/static/js/model_prep.js?v=20260709b"></script>
-  <script src="/static/js/help.js"></script>
-  <script src="/static/js/viewport2d.js?v=20260709b"></script>
-  <script src="/static/js/scene3d.js?v=20260709b"></script>
-  <script src="/static/js/app.js?v=20260709b"></script>
+        <script src="/static/js/model_prep.js?v=20260714a"></script>
+        <script src="/static/js/help.js?v=20260714a"></script>
+        <script src="/static/js/viewport2d.js?v=20260714a"></script>
+        <script src="/static/js/scene3d.js?v=20260714a"></script>
+        <script src="/static/js/app.js?v=20260714a"></script>
 </body>
 </html>

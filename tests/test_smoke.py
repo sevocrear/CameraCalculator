@@ -17,6 +17,7 @@ def test_index_html_served(httpx_client: httpx.Client):
     r = httpx_client.get("/")
     assert r.status_code == 200
     assert "id=\"app\"" in r.text
+    assert "sensorFormat" in r.text
     assert "app.js" in r.text
     assert "OrbitControls" in r.text
 
@@ -58,3 +59,9 @@ def test_presets_endpoints(httpx_client: httpx.Client):
         assert r.status_code == 200, path
         data = r.json()
         assert data, f"empty response for {path}"
+
+    sensors = httpx_client.get("/api/presets/sensors").json()
+    assert len(sensors) >= 15
+    first = sensors[0]
+    assert "aspect" in first
+    assert "diagonal_mm" in first
