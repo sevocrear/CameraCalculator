@@ -118,15 +118,23 @@ const Scene3D = (function () {
     scene.add(objectGroup);
 
     window.addEventListener('resize', onResize);
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => onResize());
+      ro.observe(container);
+    }
     if (animId) cancelAnimationFrame(animId);
     framedOnce = false;
     animate();
+    // Flex height may settle after first layout paint.
+    requestAnimationFrame(() => onResize());
   }
 
   function onResize() {
     if (!container || !renderer || !viewCamera) return;
+    if (container.hidden) return;
     const w = container.clientWidth;
     const h = Math.max(120, container.clientHeight || 420);
+    if (w < 2 || h < 2) return;
     renderer.setSize(w, h);
     viewCamera.aspect = w / h;
     viewCamera.updateProjectionMatrix();
@@ -590,5 +598,5 @@ const Scene3D = (function () {
     };
   }
 
-  return { init, update, hasWebGL, getLastGeometry, getDebugObjectState, getFrustumState };
+  return { init, update, resize: onResize, hasWebGL, getLastGeometry, getDebugObjectState, getFrustumState };
 })();

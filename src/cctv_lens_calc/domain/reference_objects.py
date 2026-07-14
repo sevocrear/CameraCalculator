@@ -65,7 +65,7 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
         cv_threshold_px=64.0,
         orientation=ObjectOrientation.UPRIGHT,
         # GLB: центроид выше bbox-центра → визуально «сидит» на оси, bbox выше.
-        model_mesh_offset_y_m=-0.027,
+        model_mesh_offset_y_m=-0.007,
     ),
     "basket": ReferenceObject(
         id="basket",
@@ -85,19 +85,20 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
         cv_threshold_px=32.0,
         orientation=ObjectOrientation.UPRIGHT,
         # GLB: центроид ~7 см выше геом. центра bbox.
-        model_mesh_offset_y_m=-0.070,
+        model_mesh_offset_y_m=-0.000,
         model_mesh_offset_x_m=0.006,
     ),
     "car": ReferenceObject(
         id="car",
         label="Авто (вид сверху)",
-        width_m=1.80,
-        height_m=1.50,
+        width_m=1.9,
+        height_m=1.298,
         depth_m=4.50,
         cv_threshold_px=32.0,
         orientation=ObjectOrientation.TOP_DOWN,
         model_mesh_offset_x_m=0.025,
         model_mesh_offset_y_m=0.020,
+        model_scale_mul = 2.0,
         # После flatten GLB уже смотрит в −Z; π разворачивал задом.
         model_rotation_xyz=(0.0, 0.0, 0.0),
     ),

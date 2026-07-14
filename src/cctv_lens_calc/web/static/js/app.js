@@ -9,6 +9,7 @@
   let selectedObjectId = 'cola_can';
   let lastResult = null;
   let debounceTimer = null;
+  let viewMode = '3d';
 
   const $ = (id) => document.getElementById(id);
 
@@ -26,6 +27,52 @@
       return;
     }
     el.textContent = `${s.width_mm} × ${s.height_mm} mm`;
+  }
+
+  function syncLensSegment() {
+    const value = $('lensType').value;
+    document.querySelectorAll('#lensSegment .segment-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.lens === value);
+    });
+    const fisheye = value === 'fisheye_equidistant';
+    const fovField = $('fisheyeFovField');
+    if (fovField) fovField.hidden = !fisheye;
+    $('fisheyeDisclaimer').hidden = !fisheye;
+  }
+
+  function setLensType(value) {
+    $('lensType').value = value;
+    syncLensSegment();
+    $('lensType').dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode === '2d' ? '2d' : '3d';
+    const v3 = $('viewport3d');
+    const v2 = $('viewport2dWrap');
+    if (v3) v3.hidden = viewMode !== '3d';
+    if (v2) v2.hidden = viewMode !== '2d';
+    document.querySelectorAll('.view-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.view === viewMode);
+    });
+    if (viewMode === '3d' && window.Scene3D && Scene3D.resize) {
+      requestAnimationFrame(() => Scene3D.resize());
+    }
+  }
+
+  function updateDoriBar(dori) {
+    const bar = $('doriBar');
+    if (!bar || !dori) return;
+    const vals = [
+      Math.max(dori.detection_m || 0, 0.01),
+      Math.max(dori.observation_m || 0, 0.01),
+      Math.max(dori.recognition_m || 0, 0.01),
+      Math.max(dori.identification_m || 0, 0.01),
+    ];
+    const segs = bar.querySelectorAll('.dori-seg');
+    segs.forEach((seg, i) => {
+      seg.style.flex = String(vals[i]);
+    });
   }
 
   function readParams() {
@@ -100,6 +147,7 @@
       <li class="rec" data-help="doriRec" tabindex="0">Recognition: ${result.dori.recognition_m} m</li>
       <li class="id" data-help="doriId" tabindex="0">Identification: ${result.dori.identification_m} m</li>
     `;
+    updateDoriBar(result.dori);
     initTooltips();
 
     const obj = objects.find((o) => o.id === selectedObjectId);
@@ -120,7 +168,7 @@
       selectedObjectId
     );
 
-    $('fisheyeDisclaimer').hidden = $('lensType').value !== 'fisheye_equidistant';
+    syncLensSegment();
   }
 
   function scheduleRecalc() {
@@ -145,7 +193,9 @@
     $('resW').value = e.resolution_w;
     $('resH').value = e.resolution_h;
     $('focal').value = e.focal_length_mm;
+    if ($('focalSlider')) $('focalSlider').value = e.focal_length_mm;
     $('lensType').value = e.lens_type;
+    syncLensSegment();
     if (e.fisheye_fov_deg) $('fisheyeFov').value = e.fisheye_fov_deg;
     Viewport2D.setResolution(e.resolution_w, e.resolution_h);
   }
@@ -156,7 +206,8 @@
     objects.forEach((o) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'tab' + (o.id === selectedObjectId ? ' active' : '');
+      btn.className =
+        'tab tab--' + o.id + (o.id === selectedObjectId ? ' active' : '');
       btn.textContent = o.label;
       btn.dataset.id = o.id;
       btn.addEventListener('click', () => {
@@ -188,15 +239,36 @@
   }
 
   function bindInputs() {
-    ['resW', 'resH', 'focal', 'fisheyeFov', 'mountHeight'].forEach((id) =>
+    ['resW', 'resH', 'fisheyeFov', 'focal'].forEach((id) =>
       $(id).addEventListener('input', scheduleRecalc)
     );
-    // <select> в браузере шлёт change, не input — иначе FOV/frustum не пересчитываются.
+    $('focal').addEventListener('input', () => {
+      if ($('focalSlider')) $('focalSlider').value = $('focal').value;
+    });
+    if ($('focalSlider')) {
+      $('focalSlider').addEventListener('input', () => {
+        $('focal').value = $('focalSlider').value;
+        scheduleRecalc();
+      });
+    }
+    $('mountHeight').addEventListener('input', () => {
+      if ($('mountHeightVal')) $('mountHeightVal').textContent = $('mountHeight').value;
+      scheduleRecalc();
+    });
     $('sensorFormat').addEventListener('change', () => {
       updateSensorDimsLabel();
       scheduleRecalc();
     });
-    $('lensType').addEventListener('change', scheduleRecalc);
+    $('lensType').addEventListener('change', () => {
+      syncLensSegment();
+      scheduleRecalc();
+    });
+    document.querySelectorAll('#lensSegment .segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setLensType(btn.dataset.lens));
+    });
+    document.querySelectorAll('.view-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setViewMode(btn.dataset.view));
+    });
     $('resW').addEventListener('input', () => {
       Viewport2D.setResolution(
         parseInt($('resW').value, 10),
@@ -262,9 +334,13 @@
     applyCameraPreset($('cameraPreset').value);
     buildObjectTabs();
     bindInputs();
+    syncLensSegment();
+    setViewMode('3d');
     initTooltips();
     Scene3D.init();
     Viewport2D.setResolution(parseInt($('resW').value, 10), parseInt($('resH').value, 10));
+    if ($('focalSlider')) $('focalSlider').value = $('focal').value;
+    if ($('mountHeightVal')) $('mountHeightVal').textContent = $('mountHeight').value;
     scheduleRecalc();
   }
 
@@ -277,5 +353,7 @@
     getMetricPpm: () => ($('metricPpm') ? $('metricPpm').textContent : null),
     getSensors: () => sensors,
     getSelectedSensor,
+    setViewMode,
+    getViewMode: () => viewMode,
   };
 })();

@@ -37,6 +37,11 @@ def test_object_tab_updates_px(page):
 
 
 def test_2d_canvas_has_content(page):
+    page.locator("#viewBtn2d").click()
+    page.wait_for_function(
+        "() => !document.getElementById('viewport2dWrap').hidden",
+        timeout=3000,
+    )
     canvas = page.locator("#viewport2d")
     box = canvas.bounding_box()
     assert box is not None

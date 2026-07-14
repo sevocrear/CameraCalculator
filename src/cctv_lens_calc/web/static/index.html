@@ -4,99 +4,146 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CameraCalculator</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260714d">
   <script src="/static/js/three.min.js"></script>
   <script src="/static/js/OrbitControls.js"></script>
   <script src="/static/js/GLTFLoader.js"></script>
 </head>
 <body>
   <div id="app">
-    <header>
-      <h1>CameraCalculator</h1>
-      <p class="subtitle">Подбор камеры: FOV, PPM, пиксели на объекте</p>
-    </header>
-
-    <section class="controls">
-      <div class="row">
-        <label data-help="cameraPreset">Пресет камеры
-          <select id="cameraPreset"></select>
-        </label>
-        <label data-help="lensType">Тип оптики
-          <select id="lensType">
-            <option value="rectilinear">Rectilinear</option>
-            <option value="fisheye_equidistant">Fisheye equidistant</option>
-          </select>
-        </label>
-        <label data-help="fisheyeFov">Fisheye FOV (°)
-          <input type="number" id="fisheyeFov" min="15" max="220" step="1" value="160">
-        </label>
-      </div>
-      <div class="row">
-        <label data-help="sensorFormat">Размер матрицы
-          <select id="sensorFormat"></select>
-        </label>
-        <span id="sensorDimsMm" class="sensor-dims-mm" data-help="sensorDimsMm">—</span>
-        <label data-help="resW">Resolution W <input type="number" id="resW" step="1" value="1920"></label>
-        <label data-help="resH">Resolution H <input type="number" id="resH" step="1" value="1080"></label>
-        <label data-help="focal">Focal (mm) <input type="number" id="focal" step="0.1" value="2.8"></label>
-      </div>
-      <div class="row">
-        <label data-help="distance">Расстояние до плоскости (м)
-          <input type="range" id="distance" min="0.1" max="30" step="0.05" value="1.0">
-          <span id="distanceVal">1.0</span> м
-        </label>
-        <label data-help="mountHeight">Высота установки (м)
-          <input type="number" id="mountHeight" step="0.1" min="0" max="6" value="2.5">
-        </label>
-      </div>
-      <div class="row objects">
-        <span>Объект:</span>
-        <div id="objectTabs" class="tabs"></div>
-        <label data-help="objectDistance">Расстояние до объекта (м)
-          <input type="range" id="objectDistance" min="0.1" max="30" step="0.05" value="1.0">
-          <span id="objectDistanceVal">1.0</span> м
-        </label>
+    <header class="brand-bar">
+      <div class="brand">
+        <h1>CameraCalculator</h1>
+        <p class="subtitle">FOV · PPM · объект в пикселях</p>
       </div>
       <p class="disclaimer" id="fisheyeDisclaimer" hidden>
-        Fisheye: расчёт пикселей на оси кадра. На краях картинки плотность ниже.
+        Fisheye: пиксели на оси кадра. На краях плотность ниже.
       </p>
-    </section>
+    </header>
 
-    <main class="layout">
-      <div class="panel viz3d">
-        <h2>3D — frustum, объект, DORI</h2>
-        <div id="viewport3d"></div>
-      </div>
-      <div class="panel metrics">
-        <h2>Метрики</h2>
-        <dl>
-          <dt data-help="metricHfov">HFOV</dt><dd id="metricHfov">—</dd>
-          <dt data-help="metricVfov">VFOV</dt><dd id="metricVfov">—</dd>
-          <dt data-help="metricDfov">DFOV</dt><dd id="metricDfov">—</dd>
-          <dt data-help="metricCoverage">Coverage @ Z</dt><dd id="metricCoverage">—</dd>
-          <dt data-help="metricPpm">PPM</dt><dd id="metricPpm">—</dd>
-          <dt data-help="metricPpc">PPC</dt><dd id="metricPpc">—</dd>
-          <dt data-help="metricGsd">GSD</dt><dd id="metricGsd">—</dd>
-        </dl>
-        <h3>Объект</h3>
-        <p id="metricObjectPx" class="object-px" data-help="metricObjectPx">—</p>
-        <p id="metricCvPass" class="cv-pass" data-help="metricCvPass">—</p>
-        <h3>DORI (м)</h3>
-        <ul id="doriList" class="dori"></ul>
-      </div>
-      <div class="panel viz2d">
-        <h2 id="viewport2dTitle">2D — вид камеры</h2>
-        <div class="canvas-wrap">
-          <canvas id="viewport2d"></canvas>
+    <aside class="sidebar" aria-label="Параметры">
+      <h2 class="rail-title">Параметры</h2>
+
+      <label class="field" data-help="cameraPreset">Пресет камеры
+        <select id="cameraPreset"></select>
+      </label>
+
+      <div class="field" data-help="lensType">
+        <span class="field-label">Тип оптики</span>
+        <div class="segment" id="lensSegment" role="group" aria-label="Тип оптики">
+          <button type="button" class="segment-btn active" data-lens="rectilinear">Rectilinear</button>
+          <button type="button" class="segment-btn" data-lens="fisheye_equidistant">Fisheye</button>
         </div>
+        <select id="lensType" class="sr-only" tabindex="-1" aria-hidden="true">
+          <option value="rectilinear">Rectilinear</option>
+          <option value="fisheye_equidistant">Fisheye equidistant</option>
+        </select>
       </div>
+
+      <label class="field fisheye-only" id="fisheyeFovField" data-help="fisheyeFov" hidden>
+        Fisheye FOV (°)
+        <input type="number" id="fisheyeFov" min="15" max="220" step="1" value="160">
+      </label>
+
+      <label class="field" data-help="sensorFormat">Размер матрицы
+        <select id="sensorFormat"></select>
+      </label>
+      <span id="sensorDimsMm" class="sensor-dims-mm" data-help="sensorDimsMm">—</span>
+
+      <div class="res-row">
+        <label class="field" data-help="resW">Resolution W
+          <input type="number" id="resW" step="1" value="1920">
+        </label>
+        <label class="field" data-help="resH">Resolution H
+          <input type="number" id="resH" step="1" value="1080">
+        </label>
+      </div>
+
+      <label class="slider-row" data-help="focal">
+        <span>Focal (mm)</span>
+        <input type="range" id="focalSlider" min="1" max="50" step="0.1" value="2.8" aria-label="Focal slider">
+        <input type="number" id="focal" min="1" max="50" step="0.1" value="2.8" class="slider-num">
+      </label>
+
+      <label class="slider-row" data-help="distance">
+        <span>До плоскости (м)</span>
+        <input type="range" id="distance" min="0.1" max="30" step="0.05" value="1.0">
+        <span class="slider-val" id="distanceVal">1.0</span>
+      </label>
+
+      <label class="slider-row" data-help="mountHeight">
+        <span>Высота установки (м)</span>
+        <input type="range" id="mountHeight" min="0" max="6" step="0.1" value="2.5">
+        <span class="slider-val" id="mountHeightVal">2.5</span>
+      </label>
+
+      <div class="objects-block">
+        <span class="field-label">Объект</span>
+        <div id="objectTabs" class="object-grid tabs"></div>
+      </div>
+
+      <label class="slider-row" data-help="objectDistance">
+        <span>До объекта (м)</span>
+        <input type="range" id="objectDistance" min="0.1" max="30" step="0.05" value="1.0">
+        <span class="slider-val" id="objectDistanceVal">1.0</span>
+      </label>
+    </aside>
+
+    <main class="stage">
+      <section class="panel viewport-panel">
+        <div class="panel-head">
+          <h2>3D / 2D просмотр</h2>
+          <div class="view-toggle" role="group" aria-label="Режим просмотра">
+            <button type="button" class="view-btn active" data-view="3d" id="viewBtn3d">3D</button>
+            <button type="button" class="view-btn" data-view="2d" id="viewBtn2d">2D</button>
+          </div>
+        </div>
+        <div class="viewport-stack">
+          <div id="viewport3d" class="viewport-layer active"></div>
+          <div class="canvas-wrap viewport-layer" id="viewport2dWrap" hidden>
+            <h2 id="viewport2dTitle" class="sr-only">2D — вид камеры</h2>
+            <canvas id="viewport2d"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel metrics-panel">
+        <h2>Метрики</h2>
+        <div class="metric-grid">
+          <div class="metric-tile" data-help="metricHfov"><span class="metric-label">HFOV</span><span class="metric-value" id="metricHfov">—</span></div>
+          <div class="metric-tile" data-help="metricVfov"><span class="metric-label">VFOV</span><span class="metric-value" id="metricVfov">—</span></div>
+          <div class="metric-tile" data-help="metricDfov"><span class="metric-label">DFOV</span><span class="metric-value" id="metricDfov">—</span></div>
+          <div class="metric-tile" data-help="metricCoverage"><span class="metric-label">Coverage @ Z</span><span class="metric-value" id="metricCoverage">—</span></div>
+          <div class="metric-tile" data-help="metricPpm"><span class="metric-label">PPM</span><span class="metric-value" id="metricPpm">—</span></div>
+          <div class="metric-tile" data-help="metricPpc"><span class="metric-label">PPC</span><span class="metric-value" id="metricPpc">—</span></div>
+          <div class="metric-tile" data-help="metricGsd"><span class="metric-label">GSD</span><span class="metric-value" id="metricGsd">—</span></div>
+        </div>
+        <div class="object-metrics">
+          <p id="metricObjectPx" class="object-px" data-help="metricObjectPx">—</p>
+          <p id="metricCvPass" class="cv-pass" data-help="metricCvPass">—</p>
+        </div>
+      </section>
+
+      <section class="panel dori-panel">
+        <h2>DORI-дистанции</h2>
+        <div class="dori-bar" id="doriBar" aria-hidden="true">
+          <span class="dori-seg det"></span>
+          <span class="dori-seg obs"></span>
+          <span class="dori-seg rec"></span>
+          <span class="dori-seg id"></span>
+        </div>
+        <ul id="doriList" class="dori"></ul>
+      </section>
     </main>
   </div>
 
-        <script src="/static/js/model_prep.js?v=20260714a"></script>
-        <script src="/static/js/help.js?v=20260714a"></script>
-        <script src="/static/js/viewport2d.js?v=20260714a"></script>
-        <script src="/static/js/scene3d.js?v=20260714a"></script>
-        <script src="/static/js/app.js?v=20260714a"></script>
+  <script src="/static/js/model_prep.js?v=20260714c"></script>
+  <script src="/static/js/help.js?v=20260714c"></script>
+  <script src="/static/js/viewport2d.js?v=20260714c"></script>
+  <script src="/static/js/scene3d.js?v=20260714c"></script>
+  <script src="/static/js/app.js?v=20260714c"></script>
 </body>
 </html>
