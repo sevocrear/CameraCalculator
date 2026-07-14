@@ -15,9 +15,13 @@ const ModelPrep = (function () {
     const rotKey = rotArr.map((v) => Number(v).toFixed(6)).join(',');
     const scaleKey =
       preset && typeof preset.model_scale_mul === 'number' ? Number(preset.model_scale_mul).toFixed(6) : '1';
+    const visualKey =
+      preset && typeof preset.model_visual_scale === 'number'
+        ? Number(preset.model_visual_scale).toFixed(6)
+        : '1';
     const off = meshOffsets(preset);
     const meshKey = [off.x, off.y, off.z].map((v) => Number(v).toFixed(4)).join(',');
-    return `${objectId}|${orientation}|r:${rotKey}|s:${scaleKey}|m:${meshKey}|d:${dims.height_m}`;
+    return `${objectId}|${orientation}|r:${rotKey}|s:${scaleKey}|v:${visualKey}|m:${meshKey}|d:${dims.height_m}`;
   }
 
   /** Bake world transforms into mesh geometry — убирает расхождение pivot/матриц узлов GLB. */
@@ -94,6 +98,21 @@ const ModelPrep = (function () {
     recenterGeometryToOrigin(model);
   }
 
+  function applyVisualScale(model, preset) {
+    const s =
+      preset && typeof preset.model_visual_scale === 'number'
+        ? Number(preset.model_visual_scale)
+        : 1.0;
+    if (!(s > 0) || Math.abs(s - 1.0) < 1e-9) return;
+    const scaleMatrix = new THREE.Matrix4().makeScale(s, s, s);
+    model.traverse((node) => {
+      if (node.isMesh && node.geometry) {
+        node.geometry.applyMatrix4(scaleMatrix);
+      }
+    });
+    recenterGeometryToOrigin(model);
+  }
+
   function prepareTemplate(cloneRoot, dims, orientation, preset) {
     const model = flattenHierarchy(cloneRoot);
     const rot = preset && preset.model_rotation_xyz;
@@ -102,6 +121,8 @@ const ModelPrep = (function () {
       model.updateMatrixWorld(true);
     }
     fitToDims(model, dims, orientation);
+    // После fit к физ. AABB — только визуальный раздув силуэта (матан не трогаем).
+    applyVisualScale(model, preset);
     return model;
   }
 
@@ -132,6 +153,7 @@ const ModelPrep = (function () {
     bakeTransformsToGeometry,
     recenterGeometryToOrigin,
     fitToDims,
+    applyVisualScale,
     prepareTemplate,
     placeInstance,
     worldPoseFromProjection,

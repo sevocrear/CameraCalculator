@@ -9,6 +9,8 @@
     проекции и позицию в 3D/2D). model_offset_z_m — это сдвиг по X (влево/вправо в кадре).
   - model_mesh_offset_* — локальная поправка GLB после подгонки bbox (только визуализация,
     не меняет width_px/height_px).
+  - model_scale_mul — множитель физ. габаритов для матана (W/H/D и bbox в px).
+  - model_visual_scale — доп. масштаб только GLB после fitToDims (не меняет width_px/height_px).
 """
 
 from dataclasses import dataclass
@@ -42,7 +44,10 @@ class ReferenceObject:
     model_mesh_offset_z_m: float = 0.0
     # Rotation to bring GLB into the project's coordinate convention (Euler, radians).
     model_rotation_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    # Масштаб физ. размеров для API/bbox (умножает width/height/depth в calculator).
     model_scale_mul: float = 1.0
+    # Масштаб только GLB-силуэта после fit к W×H×D (визуализация; 1.0 = без доп. увеличения).
+    model_visual_scale: float = 1.0
 
 
 REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
@@ -98,7 +103,9 @@ REFERENCE_OBJECTS: dict[str, ReferenceObject] = {
         orientation=ObjectOrientation.TOP_DOWN,
         model_mesh_offset_x_m=0.025,
         model_mesh_offset_y_m=0.020,
-        model_scale_mul = 2.0,
+        model_scale_mul=1.0,
+        # Силуэт GLB меньше прямоугольного AABB — чуть раздуваем только меш.
+        model_visual_scale=1.45,
         # После flatten GLB уже смотрит в −Z; π разворачивал задом.
         model_rotation_xyz=(0.0, 0.0, 0.0),
     ),

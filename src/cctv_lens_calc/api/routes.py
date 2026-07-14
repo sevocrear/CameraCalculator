@@ -105,6 +105,7 @@ def presets_objects() -> list[dict]:
             "model_mesh_offset_z_m": o.model_mesh_offset_z_m,
             "model_rotation_xyz": list(o.model_rotation_xyz),
             "model_scale_mul": o.model_scale_mul,
+            "model_visual_scale": o.model_visual_scale,
         }
         for o in list_objects()
     ]
