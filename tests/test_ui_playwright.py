@@ -26,10 +26,16 @@ def test_slider_updates_metrics(page):
 
 def test_object_tab_updates_px(page):
     page.locator('.tab[data-id="donut"]').click()
-    page.wait_for_timeout(200)
+    page.wait_for_function(
+        "() => (document.getElementById('metricObjectPx').textContent || '').includes('Пончик')",
+        timeout=10000,
+    )
     text_donut = page.locator("#metricObjectPx").inner_text()
     page.locator('.tab[data-id="car"]').click()
-    page.wait_for_timeout(200)
+    page.wait_for_function(
+        "() => (document.getElementById('metricObjectPx').textContent || '').includes('Авто')",
+        timeout=10000,
+    )
     text_car = page.locator("#metricObjectPx").inner_text()
     assert text_donut != text_car
     assert "px" in text_car

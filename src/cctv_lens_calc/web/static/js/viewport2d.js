@@ -26,6 +26,9 @@ const Viewport2D = (function () {
   let _offscreenFillLight = null;
   let _lastScreenBBox = null;
   let _lastApiBBox = null;
+  // Object id whose screen bbox / canvas snapshot is currently valid.
+  // Cleared while an async GLB load is in flight so tests cannot match a stale bbox.
+  let _lastRenderedObjectId = null;
 
   function _projectWorldToScreen(camera, point, W, H) {
     const ndc = point.clone().project(camera);
@@ -119,6 +122,7 @@ const Viewport2D = (function () {
     _lastArgs = null;
     _lastScreenBBox = null;
     _lastApiBBox = null;
+    _lastRenderedObjectId = null;
   }
 
   let _lastArgs = null;
@@ -260,6 +264,17 @@ const Viewport2D = (function () {
 
     const cacheKey = ModelPrep.templateCacheKey(objectId, dims, orientation, objectPreset);
     const template = _fittedTemplateCache.get(cacheKey);
+    const isFisheye = cameraParams && cameraParams.lens_type === 'fisheye_equidistant';
+    // Pinhole screen AABB is deterministic without the GLB — publish it immediately so
+    // alignment checks never latch onto the previous object's bbox during async load.
+    if (!isFisheye) {
+      const pose = ModelPrep.worldPoseFromProjection(proj, cameraParams.mount_height_m);
+      _lastScreenBBox = _screenBBoxFromPhysicalBox(_offscreenCamera, pose, dims, W, H);
+      _lastRenderedObjectId = objectId;
+    } else {
+      _lastScreenBBox = null;
+      _lastRenderedObjectId = null;
+    }
 
     const doRender = (prepared) => {
       if (!prepared || !_offscreenMeshRoot) return;
@@ -269,17 +284,18 @@ const Viewport2D = (function () {
       _offscreenMeshRoot.add(instance);
       _offscreenRenderer.render(_offscreenScene, _offscreenCamera);
 
-      const dims = {
+      const renderDims = {
         width_m: proj.object_width_m,
         height_m: proj.object_height_m,
         depth_m: proj.object_depth_m || proj.object_width_m,
       };
       _lastScreenBBox = _screenBBoxFromMesh(_offscreenCamera, instance, W, H);
-      const phys = _screenBBoxFromPhysicalBox(_offscreenCamera, w, dims, W, H);
+      const phys = _screenBBoxFromPhysicalBox(_offscreenCamera, w, renderDims, W, H);
       // For pinhole rendering, the physical AABB is the API alignment reference.
-      if (!cameraParams || cameraParams.lens_type !== 'fisheye_equidistant') {
+      if (!isFisheye) {
         _lastScreenBBox = phys;
       }
+      _lastRenderedObjectId = objectId;
 
       ctx.drawImage(_offscreenCanvas, 0, 0, W, H);
     };
@@ -414,6 +430,7 @@ const Viewport2D = (function () {
     getResolution: () => ({ width: _resW, height: _resH }),
     getLastScreenBBox: () => _lastScreenBBox,
     getLastApiBBox: () => _lastApiBBox,
+    getLastRenderedObjectId: () => _lastRenderedObjectId,
     getBBoxAlignment: () => {
       if (!_lastScreenBBox || !_lastApiBBox) return null;
       const sw = _lastScreenBBox.width;

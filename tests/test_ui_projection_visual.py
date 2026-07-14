@@ -34,21 +34,35 @@ RESOLUTION_CASES = [
 ]
 
 
-def _wait_ready(page):
+def _wait_ready(page, object_id: str | None = None):
     page.wait_for_function(
         "() => window.CctvLensApp && window.CctvLensApp.getMetricPpm() !== '—'",
         timeout=15000,
     )
+    if object_id is not None:
+        page.wait_for_function(
+            """(oid) => {
+              const r = window.CctvLensApp && window.CctvLensApp.getLastResult
+                && window.CctvLensApp.getLastResult();
+              return !!(r && r.projection && r.projection.object_id === oid);
+            }""",
+            arg=object_id,
+            timeout=15000,
+        )
 
 
-def _wait_model_rendered(page, timeout_ms=12000):
+def _wait_model_rendered(page, object_id: str, timeout_ms=15000):
+    """Wait until the 2D viewport bbox belongs to ``object_id``, not a stale object."""
     page.wait_for_function(
-        """() => {
+        """(oid) => {
         return typeof Viewport2D !== 'undefined'
+          && Viewport2D.getLastRenderedObjectId
+          && Viewport2D.getLastRenderedObjectId() === oid
           && Viewport2D.getLastScreenBBox
           && Viewport2D.getLastScreenBBox() !== null
           && Viewport2D.getLastScreenBBox().width > 0;
     }""",
+        arg=object_id,
         timeout=timeout_ms,
     )
 
@@ -94,9 +108,13 @@ def _apply_config(page, cfg: dict, object_id: str):
     )
     page.locator(f'.tab[data-id="{object_id}"]').click()
     page.locator("#sensorFormat").dispatch_event("change")
-    page.wait_for_timeout(400)
-    _wait_ready(page)
-    _wait_model_rendered(page)
+    _wait_ready(page, object_id)
+    page.locator("#viewBtn2d").click()
+    page.wait_for_function(
+        "() => !document.getElementById('viewport2dWrap').hidden",
+        timeout=5000,
+    )
+    _wait_model_rendered(page, object_id)
 
 
 def _bbox_alignment(page) -> dict:
@@ -268,8 +286,13 @@ def test_fisheye_180_reports_unbounded_coverage_and_keeps_object_visible(page, b
         f"{base_url}/?preset=fisheye_camera&ffov=180&z=7.4&obj=cola_can&oz=0.45",
         wait_until="domcontentloaded",
     )
-    _wait_ready(page)
-    _wait_model_rendered(page)
+    _wait_ready(page, "cola_can")
+    page.locator("#viewBtn2d").click()
+    page.wait_for_function(
+        "() => !document.getElementById('viewport2dWrap').hidden",
+        timeout=5000,
+    )
+    _wait_model_rendered(page, "cola_can")
 
     cov_text = page.locator("#metricCoverage").inner_text()
     assert "N/A" in cov_text

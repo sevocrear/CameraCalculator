@@ -516,9 +516,9 @@ const Scene3D = (function () {
       objectGroup.add(drop);
 
       const label = makeTextSprite(objectDims.label || objectId);
-      // Keep the marker compact and place the label above it.
-      label.position.set(xOff, camY + yOff + objectDims.height_m / 2 + 0.25, -oz);
-      label.scale.set(0.9, 0.45, 1);
+      // Compact world-space chip above the object (meters).
+      label.position.set(xOff, camY + yOff + objectDims.height_m / 2 + 0.18, -oz);
+      label.scale.set(0.36, 0.18, 1);
       objectGroup.add(label);
     }
 
@@ -558,10 +558,10 @@ const Scene3D = (function () {
     ctx.fillStyle = 'rgba(13,17,23,0.85)';
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.strokeStyle = '#58a6ff';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.strokeRect(2, 2, c.width - 4, c.height - 4);
     ctx.fillStyle = '#e6edf3';
-    ctx.font = 'bold 24px system-ui';
+    ctx.font = 'bold 28px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, c.width / 2, c.height / 2);
