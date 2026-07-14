@@ -92,7 +92,7 @@ def test_tooltips_present(page):
 
 def test_share_url_restores_state(page, base_url: str):
     page.goto(
-        f"{base_url}/?preset=shelf_usb_fisheye&z=0.4&obj=donut&oz=0.3",
+        f"{base_url}/?preset=fisheye_camera&z=0.4&obj=donut&oz=0.3",
         wait_until="domcontentloaded",
     )
     page.wait_for_selector("#metricPpm", timeout=15000)
@@ -100,6 +100,6 @@ def test_share_url_restores_state(page, base_url: str):
         "() => window.CctvLensApp && window.CctvLensApp.getMetricPpm() !== '—'",
         timeout=15000,
     )
-    assert page.locator("#cameraPreset").input_value() == "shelf_usb_fisheye"
+    assert page.locator("#cameraPreset").input_value() == "fisheye_camera"
     assert page.locator("#distance").input_value() == "0.4"
     assert page.locator("#lensType").input_value() == "fisheye_equidistant"

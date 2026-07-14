@@ -1,6 +1,6 @@
 # CameraCalculator
 
-Подбор камеры для проекта «Прозрачный магазин»: FOV, PPM/PPC, DORI-зоны, пиксели на эталонном объекте. Rectilinear + equidistant fisheye.
+Веб-калькулятор CCTV-оптики: FOV, покрытие, PPM/PPC/GSD, DORI-зоны (EN 62676-4), размер эталонного объекта в пикселях. Поддерживаются rectilinear (pinhole) и equidistant fisheye.
 
 ## Запуск (Docker)
 
@@ -9,7 +9,7 @@ cd tools/cctv_lens_calc
 docker compose up -d --build
 ```
 
-- UI: http://localhost:8088 (порт 8088 — чтобы не конфликтовать с Traefik на 8080)
+- UI: http://localhost:8088
 - Health: http://localhost:8088/health
 - Статус: `docker compose ps` → `app` **healthy**
 
@@ -44,18 +44,12 @@ uv run pytest -v
 | Кейс | Параметры | Ожидание |
 |------|-----------|----------|
 | JVSG baseline | 1/3", f=4mm, Z=10m | W=12.0m, PPM=160 |
-| Касса | sensor 5.37mm, f=2.8, cola @ 0.45m | ~147×267 px |
-| Полка fisheye | 160°, donut @ 0.3m | HFOV=160° |
-| Стеллаж | f=2.8, basket @ 3m | ~134×117 px |
+| Close-up object | sensor 5.37mm, f=2.8, cola @ 0.45m | ~147×267 px |
+| Wide fisheye | 160°, donut @ 0.3m | HFOV=160° |
+| Mid range | f=2.8, basket @ 3m | ~134×117 px |
 | 1/4" 6mm 5m | 1280px | W=3.0m, PPM=427 |
 
 Расхождение с JVSG на rectilinear: **< 1%**.
-
-## Проверено вручную
-
-1. Касса + cola_can @ 0.5 m (Optimus P012)
-2. shelf_usb_fisheye + donut @ 0.3 m
-3. optimus_p042 + basket @ 3 m
 
 ## API
 
@@ -65,10 +59,22 @@ uv run pytest -v
 
 ## Формулы
 
+**Rectilinear (pinhole):**
 - HFOV = 2·atan(sensor_w / 2f)
 - Coverage W = 2·Z·tan(HFOV/2)
 - PPM = resolution_w / W
+- GSD (mm/px) = 1000 / PPM
 - px_w = object_w · res_w · f / (Z · sensor_w)
-- Fisheye: r = f·θ
 
-Fisheye: пиксели на оптической оси; на краях кадра плотность ниже.
+**Equidistant fisheye:**
+- θ_max = (sensor_dim / 2) / f → FOV = 2·θ_max
+- при заданном номинальном HFOV: f_eff = (sensor_w / 2) / θ_max
+- Coverage: луч края = Z·tan(θ_max), с ограничением для сверхшироких углов
+- DORI считается через покрытие: Z = res_w / (PPM_threshold · W_per_m)
+
+**DORI (EN 62676-4), горизонтальные пороги:**
+- Detection 25 px/m · Observation 62.5 · Recognition 125 · Identification 250
+
+## 3D-модели объектов
+
+Кредиты авторам GLB — в [models/README.md](models/README.md).

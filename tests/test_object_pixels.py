@@ -6,7 +6,7 @@ from cctv_lens_calc.domain.calculator import calculate
 from cctv_lens_calc.domain.models import CalculateRequest, CameraParams, LensType, ObjectParams
 
 
-def test_cola_can_pixels_optimus_p012():
+def test_cola_can_pixels_close_up():
     req = CalculateRequest(
         camera=CameraParams(
             sensor_width_mm=5.37,

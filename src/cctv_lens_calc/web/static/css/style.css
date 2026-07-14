@@ -14,10 +14,10 @@
   --ok: #3ecf8e;
   --fail: #f07178;
   --warn: #e6b450;
-  --det: #3d8bfd;
-  --obs: #3ecf8e;
-  --rec: #a78bfa;
-  --id: #5bc0de;
+  --det: #58a6ff;
+  --obs: #3fb950;
+  --rec: #d29922;
+  --id: #f85149;
   --radius: 10px;
   --radius-sm: 6px;
   --gap: clamp(0.5rem, 0.9vh, 0.85rem);

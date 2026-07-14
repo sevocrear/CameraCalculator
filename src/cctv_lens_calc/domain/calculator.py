@@ -75,24 +75,21 @@ def calculate(request: CalculateRequest) -> CalculateResponse:
     obj_w = obj_req.object_width_m
     obj_h = obj_req.object_height_m
     base_obj_z = obj_req.object_distance_m or cam.distance_m
-    # Semantics:
-    # - object_offset_y_m — вертикальный сдвиг центра объекта
-    # - object_offset_z_m — ЛЕВО/ПРАВО (сдвиг по X) в камере/на изображении.
-    #   Это соответствует твоему замечанию: "model_offset_z_m должен быть x".
+    # object_offset_y_m — вертикаль; object_offset_z_m в API = сдвиг по X (влево/вправо).
     req_off_y = obj_req.object_offset_y_m or 0.0
-    req_off_z = obj_req.object_offset_z_m or 0.0
+    req_off_x = obj_req.object_offset_z_m or 0.0
 
     obj_d = 0.0
     label = obj_req.object_id
     cv_threshold = CV_THRESHOLDS["embedder_min_px"]
     orientation = ObjectOrientation.UPRIGHT.value
     total_off_y = req_off_y
-    total_off_z = req_off_z
+    total_off_x = req_off_x
     scale_mul = 1.0
 
     if ref is not None:
         total_off_y = req_off_y + ref.model_offset_y_m
-        total_off_z = req_off_z + ref.model_offset_z_m  # actually -> offset_x_m
+        total_off_x = req_off_x + ref.model_offset_z_m
         scale_mul = ref.model_scale_mul
 
         obj_w = obj_w or ref.width_m * scale_mul
@@ -105,10 +102,7 @@ def calculate(request: CalculateRequest) -> CalculateResponse:
         obj_w = obj_w or 0.1
         obj_h = obj_h or 0.1
 
-    obj_z = base_obj_z
-    obj_z = max(obj_z, 0.01)  # keep camera model stable
-    obj_y_off = total_off_y
-    obj_x_off = total_off_z
+    obj_z = max(base_obj_z, 0.01)
 
     if obj_w and obj_h:
         px_w, px_h = geom.object_pixels(
@@ -124,8 +118,8 @@ def calculate(request: CalculateRequest) -> CalculateResponse:
         min_side = min(px_w, px_h)
         aspect = px_w / px_h if px_h > 0 else 0.0
         center_u, center_v = proj_math.project_point_px(
-            obj_x_off,
-            obj_y_off,
+            total_off_x,
+            total_off_y,
             obj_z,
             sensor_width_mm=cam.sensor_width_mm,
             sensor_height_mm=cam.sensor_height_mm,
@@ -146,8 +140,7 @@ def calculate(request: CalculateRequest) -> CalculateResponse:
             object_height_m=obj_h,
             object_depth_m=float(obj_d or 0.0),
             object_offset_y_m=float(total_off_y),
-            # В ответе field оставляем как object_offset_z_m, но семантика = сдвиг по X.
-            object_offset_z_m=float(obj_x_off),
+            object_offset_z_m=float(total_off_x),
             orientation=orientation,
             aspect_wh=round(aspect, 4),
             cv_pass=min_side >= cv_threshold,

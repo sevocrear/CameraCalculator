@@ -21,7 +21,7 @@
     }
   },
   {
-    "name": "Optimus P012 cola_can @ 0.45m",
+    "name": "Close-up cola_can @ 0.45m",
     "camera": {
       "sensor_width_mm": 5.37,
       "sensor_height_mm": 3.02,
@@ -60,7 +60,7 @@
     }
   },
   {
-    "name": "Optimus P042 basket @ 3m",
+    "name": "Mid-range basket @ 3m",
     "camera": {
       "sensor_width_mm": 5.37,
       "sensor_height_mm": 3.02,

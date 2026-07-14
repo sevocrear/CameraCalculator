@@ -420,6 +420,8 @@ const Scene3D = (function () {
 
     // DORI в top-view: клин (трапеция) на полу от камеры до дистанции dist.
     // Это именно «плановый след» HFOV, а не пересечение лучей с полом.
+    // DORI на полу (ближе → дальше): Identification, Recognition, Observation, Detection
+    // Цвета совпадают с UI (--id / --rec / --obs / --det в style.css).
     const doriColors = [0x58a6ff, 0x3fb950, 0xd29922, 0xf85149];
     const doriKeys = ['detection_m', 'observation_m', 'recognition_m', 'identification_m'];
     let doriCount = 0;

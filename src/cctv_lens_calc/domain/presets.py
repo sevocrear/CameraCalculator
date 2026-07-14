@@ -1,4 +1,4 @@
-"""Sensor and camera presets for TechVill project."""
+"""Sensor and camera presets."""
 
 from dataclasses import dataclass
 
@@ -93,7 +93,7 @@ SENSOR_PRESETS: dict[str, SensorPreset] = {
 CAMERA_PRESETS: dict[str, CameraPreset] = {
     "optimus_p042": CameraPreset(
         id="optimus_p042",
-        label="Optimus P042 (стеллажная)",
+        label="Optimus P042",
         sensor_id="1_2_8_inch",
         resolution_w=1920,
         resolution_h=1080,
@@ -102,20 +102,20 @@ CAMERA_PRESETS: dict[str, CameraPreset] = {
         fisheye_fov_deg=None,
         datasheet_url="https://optimus-cctv.ru/catalog/ip-videokamery-prof-serii/videokamera-optimus-smart-ip-p042-1-2-8-mdhl/",
     ),
-    "optimus_p012": CameraPreset(
-        id="optimus_p012",
-        label="Optimus P012 (кассовая)",
+    "hikvision_ds_2cd2183g2_is": CameraPreset(
+        id="hikvision_ds_2cd2183g2_is",
+        label="Hikvision DS-2CD2183G2-IS",
         sensor_id="1_2_8_inch",
-        resolution_w=1920,
-        resolution_h=1080,
+        resolution_w=3840,
+        resolution_h=2160,
         focal_length_mm=2.8,
         lens_type=LensType.RECTILINEAR,
         fisheye_fov_deg=None,
         datasheet_url="https://optimus-cctv.ru/catalog/ip-videokamery-prof-serii/videokamera-optimus-smart-ip-p012-1-4x-d/",
     ),
-    "shelf_usb_fisheye": CameraPreset(
-        id="shelf_usb_fisheye",
-        label="USB внутриполочная (~160° fisheye)",
+    "fisheye_camera": CameraPreset(
+        id="fisheye_camera",
+        label="Fisheye camera (~160°)",
         sensor_id="1_2_7_inch",
         resolution_w=1920,
         resolution_h=1080,
@@ -123,25 +123,14 @@ CAMERA_PRESETS: dict[str, CameraPreset] = {
         lens_type=LensType.FISHEYE_EQUIDISTANT,
         fisheye_fov_deg=160.0,
         datasheet_url=None,
-    ),
-    "ceiling_fisheye_1080p": CameraPreset(
-        id="ceiling_fisheye_1080p",
-        label="Потолочная fisheye 1080p",
-        sensor_id="1_1_8_inch",
-        resolution_w=1920,
-        resolution_h=1080,
-        focal_length_mm=1.4,
-        lens_type=LensType.FISHEYE_EQUIDISTANT,
-        fisheye_fov_deg=180.0,
-        datasheet_url=None,
-    ),
-}
+    )
+    }
 
 
 CV_THRESHOLDS = {
     "detector_min_px": 32.0,
     "embedder_min_px": 64.0,
-    "sku_confident_px": 100.0,
+    "confident_px": 100.0,
 }
 
 

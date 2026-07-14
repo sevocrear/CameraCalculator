@@ -270,7 +270,7 @@ def test_sensor_format_change_updates_3d_frustum_width(page):
 def test_fisheye_180_user_url_coverage_and_object_visible(page, base_url):
     """URL пользователя: coverage конечный, объект виден, frustum не «в обратную сторону»."""
     page.goto(
-        f"{base_url}/?preset=ceiling_fisheye_1080p&z=7.4&obj=cola_can&oz=0.45",
+        f"{base_url}/?preset=fisheye_camera&z=7.4&obj=cola_can&oz=0.45",
         wait_until="domcontentloaded",
     )
     _wait_ready(page)
@@ -304,9 +304,15 @@ def test_fisheye_180_user_url_coverage_and_object_visible(page, base_url):
 
 def test_fisheye_179_vs_180_different_pixels(page, base_url):
     page.goto(
-        f"{base_url}/?preset=ceiling_fisheye_1080p&z=7.4&obj=basket&oz=0.45",
+        f"{base_url}/?preset=fisheye_camera&z=7.4&obj=basket&oz=0.45",
         wait_until="domcontentloaded",
     )
+    _wait_ready(page)
+    page.locator("#fisheyeFovField").evaluate("el => el.hidden = false")
+
+    page.locator("#fisheyeFov").fill("180")
+    page.locator("#fisheyeFov").dispatch_event("input")
+    page.wait_for_timeout(400)
     _wait_ready(page)
     w180 = page.evaluate("() => window.CctvLensApp.getLastResult().projection.width_px")
 
@@ -316,6 +322,7 @@ def test_fisheye_179_vs_180_different_pixels(page, base_url):
     _wait_ready(page)
     w179 = page.evaluate("() => window.CctvLensApp.getLastResult().projection.width_px")
 
+    # Slightly narrower FOV → larger object in px.
     assert w179 > w180
     assert abs(w179 - w180) > 1.0
 
